@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="he">
+<head>
+    <meta charset="UTF-8">
+    <title>ניהול משימות</title>
+</head>
+<body>
+    <h1>ניהול משימות – ספרינט 1</h1>
+
+    <h2>יצירת משימה</h2>
+    <form action="/tasks/create" method="post">
+        <input type="text" name="title" placeholder="תיאור משימה" required>
+        <button type="submit">הוסף משימה</button>
+    </form>
+
+    <h2>סינון משימות לפי סטטוס</h2>
+    <a href="/tasks">הכול</a> |
+    <a href="/tasks?status=חדש">חדש</a> |
+    <a href="/tasks?status=בתהליך">בתהליך</a> |
+    <a href="/tasks?status=בוצע">בוצע</a>
+
+    <hr>
+
+    {% if tasks %}
+        <table border="1" cellpadding="5">
+            <tr>
+                <th>תיאור</th>
+                <th>סטטוס</th>
+                <th>עריכה</th>
+                <th>מחיקה</th>
+            </tr>
+            {% for task in tasks %}
+            <tr>
+                <td>{{ task.title }}</td>
+                <td>{{ task.status }}</td>
+                <td>
+                    <form action="/tasks/{{ task.id }}/edit" method="post">
+                        <input type="text" name="title" value="{{ task.title }}">
+                        <select name="status">
+                            <option value="חדש" {% if task.status == "חדש" %}selected{% endif %}>חדש</option>
+                            <option value="בתהליך" {% if task.status == "בתהליך" %}selected{% endif %}>בתהליך</option>
+                            <option value="בוצע" {% if task.status == "בוצע" %}selected{% endif %}>בוצע</option>
+                        </select>
+                        <button type="submit">שמור</button>
+                    </form>
+                </td>
+                <td>
+                    <form action="/tasks/{{ task.id }}/delete" method="post" onsubmit="return confirm('למחוק משימה?');">
+                        <button type="submit">מחק</button>
+                    </form>
+                </td>
+            </tr>
+            {% endfor %}
+        </table>
+    {% else %}
+        <p>אין משימות עדיין.</p>
+    {% endif %}
+
+    <br>
+    <a href="/budget">מעבר להוצאות</a>
+</body>
+</html>

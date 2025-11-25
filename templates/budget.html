@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="he">
+<head>
+    <meta charset="UTF-8">
+    <title>ניהול הוצאות</title>
+</head>
+<body>
+    <h1>ניהול הוצאות – ספרינט 1</h1>
+
+    <h2>הוספת הוצאה</h2>
+    <form action="/budget/add" method="post">
+        <input type="text" name="description" placeholder="תיאור הוצאה" required>
+        <input type="number" step="0.01" name="amount" placeholder="סכום" required>
+        <button type="submit">הוסף</button>
+    </form>
+
+    <hr>
+
+    <h2>סיכום הוצאות</h2>
+    <p>סה״כ: {{ total }} ₪</p>
+
+    <h3>רשימת הוצאות:</h3>
+    {% if expenses %}
+        <ul>
+            {% for e in expenses %}
+                <li>{{ e.description }} — {{ e.amount }} ₪</li>
+            {% endfor %}
+        </ul>
+    {% else %}
+        <p>אין הוצאות עדיין.</p>
+    {% endif %}
+
+    <br>
+    <a href="/tasks">חזרה למשימות</a>
+</body>
+</html>
