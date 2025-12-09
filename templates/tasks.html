@@ -2,61 +2,83 @@
 <html lang="he">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ניהול משימות</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
 <body>
-    <h1>ניהול משימות – ספרינט 1</h1>
+    <div class="container">
+        <h1>🎊 ניהול משימות – ספרינט 1</h1>
+        
+        <h2>יצירת משימה חדשה</h2>
+        <form action="/tasks/create" method="post">
+            <input type="text" name="title" placeholder="תיאור משימה" required>
+            <button type="submit">➕ הוסף משימה</button>
+        </form>
 
-    <h2>יצירת משימה</h2>
-    <form action="/tasks/create" method="post">
-        <input type="text" name="title" placeholder="תיאור משימה" required>
-        <button type="submit">הוסף משימה</button>
-    </form>
+        <h2>סינון משימות לפי סטטוס</h2>
+        <div style="text-align: center; margin: 20px 0;">
+            <a href="/tasks">📋 הכול</a>
+            <a href="/tasks?status=חדש">🆕 חדש</a>
+            <a href="/tasks?status=בתהליך">⚙️ בתהליך</a>
+            <a href="/tasks?status=בוצע">✅ בוצע</a>
+        </div>
 
-    <h2>סינון משימות לפי סטטוס</h2>
-    <a href="/tasks">הכול</a> |
-    <a href="/tasks?status=חדש">חדש</a> |
-    <a href="/tasks?status=בתהליך">בתהליך</a> |
-    <a href="/tasks?status=בוצע">בוצע</a>
+        <hr>
 
-    <hr>
-
-    {% if tasks %}
-        <table border="1" cellpadding="5">
-            <tr>
-                <th>תיאור</th>
-                <th>סטטוס</th>
-                <th>עריכה</th>
-                <th>מחיקה</th>
-            </tr>
-            {% for task in tasks %}
-            <tr>
-                <td>{{ task.title }}</td>
-                <td>{{ task.status }}</td>
-                <td>
-                    <form action="/tasks/{{ task.id }}/edit" method="post">
-                        <input type="text" name="title" value="{{ task.title }}">
-                        <select name="status">
-                            <option value="חדש" {% if task.status == "חדש" %}selected{% endif %}>חדש</option>
-                            <option value="בתהליך" {% if task.status == "בתהליך" %}selected{% endif %}>בתהליך</option>
-                            <option value="בוצע" {% if task.status == "בוצע" %}selected{% endif %}>בוצע</option>
-                        </select>
-                        <button type="submit">שמור</button>
-                    </form>
-                </td>
-                <td>
-                    <form action="/tasks/{{ task.id }}/delete" method="post" onsubmit="return confirm('למחוק משימה?');">
-                        <button type="submit">מחק</button>
-                    </form>
-                </td>
-            </tr>
-            {% endfor %}
+        {% if tasks %}
+        <table>
+            <thead>
+                <tr>
+                    <th>תיאור</th>
+                    <th>סטטוס</th>
+                    <th>עריכה</th>
+                    <th>מחיקה</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for task in tasks %}
+                <tr>
+                    <td>{{ task.title }}</td>
+                    <td>
+                        {% if task.status == "חדש" %}
+                            <span class="status-new">🆕 חדש</span>
+                        {% elif task.status == "בתהליך" %}
+                            <span class="status-active">⚙️ בתהליך</span>
+                        {% elif task.status == "בוצע" %}
+                            <span class="status-done">✅ בוצע</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <form action="/tasks/{{ task.id }}/edit" method="post">
+                            <input type="text" name="title" value="{{ task.title }}" required>
+                            <select name="status">
+                                <option value="חדש" {% if task.status == "חדש" %}selected{% endif %}>חדש</option>
+                                <option value="בתהליך" {% if task.status == "בתהליך" %}selected{% endif %}>בתהליך</option>
+                                <option value="בוצע" {% if task.status == "בוצע" %}selected{% endif %}>בוצע</option>
+                            </select>
+                            <button type="submit">💾 שמור</button>
+                        </form>
+                    </td>
+                    <td>
+                        <form action="/tasks/{{ task.id }}/delete" method="post" onsubmit="return confirm('❌ למחוק משימה?');">
+                            <button type="submit" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);">🗑️ מחק</button>
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
         </table>
-    {% else %}
-        <p>אין משימות עדיין.</p>
-    {% endif %}
+        {% else %}
+        <div class="empty-message">
+            <p>📭 אין משימות עדיין. הוסף משימה ראשונה!</p>
+        </div>
+        {% endif %}
 
-    <br>
-    <a href="/budget">מעבר להוצאות</a>
+        <br>
+        <div style="text-align: center;">
+            <a href="/budget" style="font-size: 1.2rem;">💰 מעבר להוצאות</a>
+        </div>
+    </div>
 </body>
 </html>
