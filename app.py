@@ -3,7 +3,7 @@ import sqlite3
 
 app = Flask(__name__)
 
-# פונקציה לחיבור ל-Database
+# פונקציה טלחיבור ל-Database
 def get_db_connection():
     conn = sqlite3.connect('database.db')
     conn.row_factory = sqlite3.Row  # מאפשר גישה לעמודות בשם
