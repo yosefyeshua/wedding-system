@@ -1,128 +1,82 @@
-from flask import Flask, render_template, request, redirect, url_for
+from flask import Flask, render_template, request, redirect
 import sqlite3
 
 app = Flask(__name__)
 
-# פונקציה טלחיבור ל-Database
-def get_db_connection():
+# ===== HOME =====
+@app.route('/')
+def index():
+    return redirect('/tasks')
+
+# ===== TASKS ROUTES =====
+@app.route('/tasks')
+def tasks():
+    status_filter = request.args.get('status')
     conn = sqlite3.connect('database.db')
-    conn.row_factory = sqlite3.Row  # מאפשר גישה לעמודות בשם
-    return conn
-
-@app.route("/")
-def home():
-    # דף הבית יעביר אוטומטית למסך המשימות
-    return redirect(url_for("tasks_page"))
-
-@app.route("/tasks", methods=["GET"])
-def tasks_page():
-    """
-    מסך ניהול משימות:
-    - מציג רשימת משימות
-    - מאפשר סינון לפי סטטוס (חדש/בתהליך/בוצע)
-    """
-    status_filter = request.args.get("status")
-    
-    conn = get_db_connection()
+    conn.row_factory = sqlite3.Row
+    c = conn.cursor()
     
     if status_filter:
-        tasks = conn.execute('SELECT * FROM tasks WHERE status = ?', (status_filter,)).fetchall()
+        c.execute('SELECT * FROM tasks WHERE status = ?', (status_filter,))
     else:
-        tasks = conn.execute('SELECT * FROM tasks').fetchall()
+        c.execute('SELECT * FROM tasks')
     
+    tasks = c.fetchall()
     conn.close()
-    
-    return render_template("tasks.html", tasks=tasks, current_status=status_filter)
+    return render_template('tasks.html', tasks=tasks)
 
-@app.route("/tasks/create", methods=["POST"])
+@app.route('/tasks/create', methods=['POST'])
 def create_task():
-    """
-    יצירת משימה חדשה (User Story: יצירת משימה)
-    """
-    title = request.form.get("title")
-    
-    if title:
-        conn = get_db_connection()
-        conn.execute('INSERT INTO tasks (title, status) VALUES (?, ?)', 
-                     (title, 'חדש'))
-        conn.commit()
-        conn.close()
-    
-    return redirect(url_for("tasks_page"))
-
-@app.route("/tasks/<int:task_id>/edit", methods=["POST"])
-def edit_task(task_id):
-    """
-    עריכת משימה קיימת (User Story: עריכת משימה)
-    """
-    new_title = request.form.get("title")
-    new_status = request.form.get("status")
-    
-    conn = get_db_connection()
-    
-    if new_title and new_status:
-        conn.execute('UPDATE tasks SET title = ?, status = ? WHERE id = ?',
-                     (new_title, new_status, task_id))
-    elif new_title:
-        conn.execute('UPDATE tasks SET title = ? WHERE id = ?',
-                     (new_title, task_id))
-    elif new_status:
-        conn.execute('UPDATE tasks SET status = ? WHERE id = ?',
-                     (new_status, task_id))
-    
+    description = request.form['description']
+    conn = sqlite3.connect('database.db')
+    c = conn.cursor()
+    c.execute('INSERT INTO tasks (title, description, status) VALUES (?, ?, ?)', (description, description, 'חדש'))
     conn.commit()
     conn.close()
-    
-    return redirect(url_for("tasks_page"))
+    return redirect('/tasks')
+@app.route('/tasks/status/<int:task_id>', methods=['POST'])
+def update_task_status(task_id):
+    new_status = request.form['new_status']
+    conn = sqlite3.connect('database.db')
+    c = conn.cursor()
+    c.execute('UPDATE tasks SET status = ? WHERE id = ?', (new_status, task_id))
+    conn.commit()
+    conn.close()
+    return redirect('/tasks')
 
-@app.route("/tasks/<int:task_id>/delete", methods=["POST"])
+@app.route('/tasks/delete/<int:task_id>', methods=['POST'])
 def delete_task(task_id):
-    """
-    מחיקת משימה (User Story: מחיקת משימה)
-    """
-    conn = get_db_connection()
-    conn.execute('DELETE FROM tasks WHERE id = ?', (task_id,))
+    conn = sqlite3.connect('database.db')
+    c = conn.cursor()
+    c.execute('DELETE FROM tasks WHERE id = ?', (task_id,))
     conn.commit()
     conn.close()
-    
-    return redirect(url_for("tasks_page"))
+    return redirect('/tasks')
 
-@app.route("/budget", methods=["GET"])
-def budget_page():
-    """
-    מסך הוצאות + סיכום (User Stories: הוספת הוצאה, סיכום הוצאות)
-    """
-    conn = get_db_connection()
-    expenses = conn.execute('SELECT * FROM expenses').fetchall()
-    
-    # חישוב סכום כולל
-    total = sum(expense['amount'] for expense in expenses)
-    
+# ===== BUDGET ROUTES =====
+@app.route('/budget')
+def budget():
+    conn = sqlite3.connect('database.db')
+    conn.row_factory = sqlite3.Row
+    c = conn.cursor()
+    c.execute('SELECT * FROM expenses')
+    expenses = c.fetchall()
+    c.execute('SELECT SUM(amount) FROM expenses')
+    total = c.fetchone()[0] or 0
     conn.close()
-    
-    return render_template("budget.html", expenses=expenses, total=total)
+    return render_template('budget.html', expenses=expenses, total=total)
 
-@app.route("/budget/add", methods=["POST"])
+@app.route('/budget/add', methods=['POST'])
 def add_expense():
-    """
-    הוספת הוצאה (User Story: הוספת הוצאה)
-    """
-    description = request.form.get("description")
-    amount_str = request.form.get("amount")
-    
-    try:
-        amount = float(amount_str)
-    except (TypeError, ValueError):
-        amount = 0
-    
-    if description and amount > 0:
-        conn = get_db_connection()
-        conn.execute('INSERT INTO expenses (description, amount) VALUES (?, ?)',
-                     (description, amount))
-        conn.commit()
-        conn.close()
-    
-    return redirect(url_for("budget_page"))
+    description = request.form['description']
+    amount = float(request.form['amount'])
+    conn = sqlite3.connect('database.db')
+    c = conn.cursor()
+    c.execute('INSERT INTO expenses (description, amount) VALUES (?, ?)', (description, amount))
+    conn.commit()
+    conn.close()
+    return redirect('/budget')
+
 # ===== SUPPLIERS ROUTES =====
 @app.route('/suppliers')
 def suppliers():
@@ -159,5 +113,6 @@ def delete_supplier(supplier_id):
     conn.commit()
     conn.close()
     return redirect('/suppliers')
-if __name__ == "__main__":
+
+if __name__ == '__main__':
     app.run(debug=True, port=5001)

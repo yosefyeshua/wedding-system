@@ -28,13 +28,12 @@
         <hr>
 
         <h2>סינון משימות לפי סטטוס</h2>
-        <h2>סינון משימות לפי סטטוס</h2>
-<div style="text-align: center; margin: 20px 0;">
-    <a href="/tasks" style="display: inline-block; margin: 0 10px; padding: 10px 20px; background: rgba(255,255,255,0.95); border-radius: 8px; text-decoration: none; color: #667eea; font-weight: bold; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">📋 הכול</a>
-    <a href="/tasks?status=חדש" style="display: inline-block; margin: 0 10px; padding: 10px 20px; background: rgba(255,255,255,0.95); border-radius: 8px; text-decoration: none; color: #667eea; font-weight: bold; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">🆕 חדש</a>
-    <a href="/tasks?status=בתהליך" style="display: inline-block; margin: 0 10px; padding: 10px 20px; background: rgba(255,255,255,0.95); border-radius: 8px; text-decoration: none; color: #667eea; font-weight: bold; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">⚙️ בתהליך</a>
-    <a href="/tasks?status=בוצע" style="display: inline-block; margin: 0 10px; padding: 10px 20px; background: rgba(255,255,255,0.95); border-radius: 8px; text-decoration: none; color: #667eea; font-weight: bold; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">✅ בוצע</a>
-</div>
+        <div style="text-align: center; margin: 20px 0;">
+            <a href="/tasks" style="display: inline-block; margin: 0 10px; padding: 10px 20px; background: rgba(255,255,255,0.95); border-radius: 8px; text-decoration: none; color: #667eea; font-weight: bold; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">📋 הכול</a>
+            <a href="/tasks?status=חדש" style="display: inline-block; margin: 0 10px; padding: 10px 20px; background: rgba(255,255,255,0.95); border-radius: 8px; text-decoration: none; color: #667eea; font-weight: bold; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">🆕 חדש</a>
+            <a href="/tasks?status=בתהליך" style="display: inline-block; margin: 0 10px; padding: 10px 20px; background: rgba(255,255,255,0.95); border-radius: 8px; text-decoration: none; color: #667eea; font-weight: bold; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">⚙️ בתהליך</a>
+            <a href="/tasks?status=בוצע" style="display: inline-block; margin: 0 10px; padding: 10px 20px; background: rgba(255,255,255,0.95); border-radius: 8px; text-decoration: none; color: #667eea; font-weight: bold; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">✅ בוצע</a>
+        </div>
 
         <hr>
 
@@ -44,7 +43,6 @@
             <thead>
                 <tr>
                     <th>תיאור</th>
-                    <th>עריכה</th>
                     <th>סטטוס</th>
                     <th>מחיקה</th>
                 </tr>
@@ -52,16 +50,10 @@
             <tbody>
                 {% for task in tasks %}
                 <tr>
-                    <td>{{ task.description }}</td>
-                    <td>
-                        <form action="/tasks/edit/{{ task.id }}" method="post" style="display: inline;">
-                            <input type="text" name="new_description" value="{{ task.description }}" style="width: 200px;">
-                            <button type="submit" style="background: #4facfe; border: none; padding: 6px 12px; border-radius: 8px; color: white; cursor: pointer;">✏️ שמור</button>
-                        </form>
-                    </td>
+                 <td><strong style="color: black !important;">{{ task.description }}</strong></td>
                     <td>
                         <form action="/tasks/status/{{ task.id }}" method="post" style="display: inline;">
-                            <select name="new_status" onchange="this.form.submit()" style="padding: 6px; border-radius: 8px; border: 1px solid #ddd;">
+                            <select name="new_status" onchange="this.form.submit()" style="padding: 8px; border-radius: 8px; border: 1px solid #ddd; background: white;">
                                 <option value="חדש" {% if task.status == 'חדש' %}selected{% endif %}>🆕 חדש</option>
                                 <option value="בתהליך" {% if task.status == 'בתהליך' %}selected{% endif %}>⚙️ בתהליך</option>
                                 <option value="בוצע" {% if task.status == 'בוצע' %}selected{% endif %}>✅ בוצע</option>
@@ -70,7 +62,7 @@
                     </td>
                     <td>
                         <form action="/tasks/delete/{{ task.id }}" method="post" style="display: inline;">
-                            <button type="submit" style="background: #f093fb; border: none; padding: 6px 12px; border-radius: 8px; cursor: pointer; font-size: 1rem;">🗑️ מחק</button>
+                            <button type="submit" style="background: #f093fb; border: none; padding: 8px 16px; border-radius: 8px; cursor: pointer; font-size: 1rem; color: white;">🗑️ מחק</button>
                         </form>
                     </td>
                 </tr>
