@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="he">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ניהול ספקים</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <!-- Navigation Menu -->
+        <nav style="background: rgba(255,255,255,0.95); padding: 15px; border-radius: 12px; margin-bottom: 20px; text-align: center; box-shadow: 0 4px 15px rgba(0,0,0,0.1);">
+            <a href="/tasks" style="margin: 0 15px; font-size: 1.1rem; text-decoration: none; color: #667eea; transition: all 0.3s;">📋 משימות</a>
+            <span style="color: #ccc;">|</span>
+            <a href="/budget" style="margin: 0 15px; font-size: 1.1rem; text-decoration: none; color: #667eea; transition: all 0.3s;">💰 הוצאות</a>
+            <span style="color: #ccc;">|</span>
+            <a href="/suppliers" style="margin: 0 15px; font-size: 1.1rem; text-decoration: none; color: #667eea; font-weight: bold; transition: all 0.3s;">🏢 ספקים</a>
+        </nav>
+
+        <h1>🏢 ניהול ספקים</h1>
+        
+        <h2>הוספת ספק חדש</h2>
+        <form action="/suppliers/add" method="post">
+            <input type="text" name="name" placeholder="שם הספק (לדוגמה: אולם אירועים רויאל)" required>
+            <input type="text" name="phone" placeholder="טלפון (לדוגמה: 050-1234567)">
+            <input type="text" name="category" placeholder="קטגוריה (לדוגמה: אולמות)" required>
+            <input type="number" step="0.01" name="price" placeholder="מחיר משוער בשקלים">
+            <button type="submit">➕ הוסף ספק</button>
+        </form>
+
+        <hr>
+
+        <h2>📊 רשימת ספקים</h2>
+        <p>💵 סה״כ עלות ספקים: <strong>{{ total }} ₪</strong></p>
+
+        <h3>📝 ספקים רשומים:</h3>
+        {% if suppliers %}
+        <table>
+            <thead>
+                <tr>
+                    <th>שם הספק</th>
+                    <th>טלפון</th>
+                    <th>קטגוריה</th>
+                    <th>מחיר</th>
+                    <th>פעולות</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for s in suppliers %}
+                <tr>
+                    <td><strong>{{ s.name }}</strong></td>
+                    <td>{{ s.phone }}</td>
+                    <td><span style="background: #667eea; color: white; padding: 4px 12px; border-radius: 12px; font-size: 0.85rem;">{{ s.category }}</span></td>
+                    <td style="color: #667eea; font-weight: 700;">{{ s.price }} ₪</td>
+                    <td>
+                        <form action="/suppliers/delete/{{ s.id }}" method="post" style="display: inline;">
+                            <button type="submit" style="background: #f093fb; border: none; padding: 6px 12px; border-radius: 8px; cursor: pointer; font-size: 1rem;">🗑️ מחק</button>
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <div class="empty-message">
+            <p>📭 אין ספקים רשומים עדיין. הוסף ספק ראשון!</p>
+        </div>
+        {% endif %}
+    </div>
+</body>
+</html>

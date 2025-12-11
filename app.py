@@ -123,6 +123,41 @@ def add_expense():
         conn.close()
     
     return redirect(url_for("budget_page"))
+# ===== SUPPLIERS ROUTES =====
+@app.route('/suppliers')
+def suppliers():
+    conn = sqlite3.connect('database.db')
+    conn.row_factory = sqlite3.Row
+    c = conn.cursor()
+    c.execute('SELECT * FROM suppliers')
+    suppliers = c.fetchall()
+    c.execute('SELECT SUM(price) FROM suppliers')
+    total = c.fetchone()[0] or 0
+    conn.close()
+    return render_template('suppliers.html', suppliers=suppliers, total=total)
 
+@app.route('/suppliers/add', methods=['POST'])
+def add_supplier():
+    name = request.form['name']
+    phone = request.form.get('phone', '')
+    category = request.form['category']
+    price = float(request.form.get('price', 0))
+    
+    conn = sqlite3.connect('database.db')
+    c = conn.cursor()
+    c.execute('INSERT INTO suppliers (name, phone, category, price) VALUES (?, ?, ?, ?)',
+              (name, phone, category, price))
+    conn.commit()
+    conn.close()
+    return redirect('/suppliers')
+
+@app.route('/suppliers/delete/<int:supplier_id>', methods=['POST'])
+def delete_supplier(supplier_id):
+    conn = sqlite3.connect('database.db')
+    c = conn.cursor()
+    c.execute('DELETE FROM suppliers WHERE id = ?', (supplier_id,))
+    conn.commit()
+    conn.close()
+    return redirect('/suppliers')
 if __name__ == "__main__":
     app.run(debug=True, port=5001)

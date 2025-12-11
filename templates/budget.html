@@ -8,7 +8,16 @@
 </head>
 <body>
     <div class="container">
-        <h1>💰 ניהול הוצאות – ספרינט 1</h1>
+        <!-- Navigation Menu -->
+        <nav style="background: rgba(255,255,255,0.95); padding: 15px; border-radius: 12px; margin-bottom: 20px; text-align: center; box-shadow: 0 4px 15px rgba(0,0,0,0.1);">
+            <a href="/tasks" style="margin: 0 15px; font-size: 1.1rem; text-decoration: none; color: #667eea; transition: all 0.3s;">📋 משימות</a>
+            <span style="color: #ccc;">|</span>
+            <a href="/budget" style="margin: 0 15px; font-size: 1.1rem; text-decoration: none; color: #667eea; font-weight: bold; transition: all 0.3s;">💰 הוצאות</a>
+            <span style="color: #ccc;">|</span>
+            <a href="/suppliers" style="margin: 0 15px; font-size: 1.1rem; text-decoration: none; color: #667eea; transition: all 0.3s;">🏢 ספקים</a>
+        </nav>
+
+        <h1>💰 ניהול הוצאות</h1>
         
         <h2>הוספת הוצאה חדשה</h2>
         <form action="/budget/add" method="post">
@@ -36,11 +45,6 @@
             <p>📭 אין הוצאות עדיין. הוסף הוצאה ראשונה!</p>
         </div>
         {% endif %}
-
-        <br>
-        <div style="text-align: center;">
-            <a href="/tasks" style="font-size: 1.2rem;">📋 חזרה למשימות</a>
-        </div>
     </div>
 </body>
 </html>
