@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ניהול הוצאות</title>
+    <title>ניהול תקציב</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
 <body>
@@ -15,31 +15,45 @@
             <a href="/budget" style="margin: 0 15px; font-size: 1.1rem; text-decoration: none; color: #667eea; font-weight: bold; transition: all 0.3s;">💰 הוצאות</a>
             <span style="color: #ccc;">|</span>
             <a href="/suppliers" style="margin: 0 15px; font-size: 1.1rem; text-decoration: none; color: #667eea; transition: all 0.3s;">🏢 ספקים</a>
+            <span style="color: #ccc;">|</span>
+            <a href="/events" style="margin: 0 15px; font-size: 1.1rem; text-decoration: none; color: #667eea; transition: all 0.3s;">📅 אירועים</a>
         </nav>
 
-        <h1>💰 ניהול הוצאות</h1>
+        <h1>💰 ניהול תקציב</h1>
         
-        <h2>הוספת הוצאה חדשה</h2>
+        <h2>הוספת הוצאה</h2>
         <form action="/budget/add" method="post">
-            <input type="text" name="description" placeholder="תיאור ההוצאה (לדוגמה: אולם אירועים)" required>
-            <input type="number" step="0.01" name="amount" placeholder="סכום בשקלים" required>
+            <input type="text" name="description" placeholder="תיאור ההוצאה" required>
+            <input type="number" name="amount" placeholder="סכום" step="0.01" required>
             <button type="submit">➕ הוסף הוצאה</button>
         </form>
 
         <hr>
 
-        <h2>📊 סיכום הוצאות</h2>
-        <p>💵 סה״כ הוצאות: <strong>{{ total }} ₪</strong></p>
+        <h2>📊 סיכום תקציב</h2>
+        <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 20px; border-radius: 12px; text-align: center; margin-bottom: 30px;">
+            <h3 style="margin: 0;">סה"כ הוצאות</h3>
+            <p style="font-size: 2rem; margin: 10px 0; font-weight: bold;">₪{{ "%.2f"|format(total) }}</p>
+        </div>
 
-        <h3>📝 רשימת הוצאות:</h3>
+        <h2>📋 רשימת הוצאות</h2>
         {% if expenses %}
-        <ul>
-            {% for e in expenses %}
-            <li>
-                <strong>{{ e.description }}</strong> — <span style="color: #764ba2; font-weight: 700;">{{ e.amount }} ₪</span>
-            </li>
-            {% endfor %}
-        </ul>
+        <table>
+            <thead>
+                <tr>
+                    <th>תיאור</th>
+                    <th>סכום</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for expense in expenses %}
+                <tr>
+                    <td>{{ expense.description }}</td>
+                    <td style="font-weight: bold;">₪{{ "%.2f"|format(expense.amount) }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
         {% else %}
         <div class="empty-message">
             <p>📭 אין הוצאות עדיין. הוסף הוצאה ראשונה!</p>

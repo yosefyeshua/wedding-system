@@ -164,5 +164,98 @@ def delete_supplier(supplier_id):
     conn.close()
     return redirect('/suppliers')
 
+# ===== EVENTS ROUTES =====
+@app.route('/events')
+def events():
+    from datetime import datetime
+    import calendar
+    
+    conn = sqlite3.connect('database.db')
+    conn.row_factory = sqlite3.Row
+    c = conn.cursor()
+    c.execute('SELECT * FROM events ORDER BY event_date ASC')
+    events_raw = c.fetchall()
+    conn.close()
+    
+    # Format events with Hebrew dates
+    events = []
+    for event in events_raw:
+        event_dict = dict(event)
+        # Format date as DD/MM/YYYY
+        date_obj = datetime.strptime(event['event_date'], '%Y-%m-%d')
+        event_dict['event_date'] = date_obj.strftime('%d/%m/%Y')
+        # Format time without seconds
+        if event['event_time']:
+            event_dict['event_time'] = event['event_time'][:5]  # HH:MM only
+        events.append(event_dict)
+    
+    # Get current month and year
+    now = datetime.now()
+    year = now.year
+    month = now.month
+    
+    # Hebrew month names
+    month_names = {
+        1: 'ינואר', 2: 'פברואר', 3: 'מרץ', 4: 'אפריל',
+        5: 'מאי', 6: 'יוני', 7: 'יולי', 8: 'אוגוסט',
+        9: 'ספטמבר', 10: 'אוקטובר', 11: 'נובמבר', 12: 'דצמבר'
+    }
+    month_name = month_names[month]
+    
+    # Get calendar days
+    cal = calendar.monthcalendar(year, month)
+    calendar_days = []
+    
+    # Get event dates for highlighting
+    event_dates = set()
+    for event in events_raw:
+        event_date = datetime.strptime(event['event_date'], '%Y-%m-%d')
+        if event_date.year == year and event_date.month == month:
+            event_dates.add(event_date.day)
+    
+    # Build calendar
+    for week in cal:
+        for day in week:
+            if day == 0:
+                calendar_days.append({'day': '', 'has_event': False, 'is_today': False})
+            else:
+                is_today = (day == now.day and month == now.month and year == now.year)
+                has_event = day in event_dates
+                calendar_days.append({
+                    'day': day,
+                    'has_event': has_event,
+                    'is_today': is_today
+                })
+    
+    return render_template('events.html', 
+                         events=events, 
+                         calendar_days=calendar_days,
+                         month_name=month_name,
+                         year=year)
+
+@app.route('/events/add', methods=['POST'])
+def add_event():
+    title = request.form['title']
+    event_date = request.form['event_date']
+    event_time = request.form.get('event_time', '')
+    description = request.form.get('description', '')
+    
+    conn = sqlite3.connect('database.db')
+    c = conn.cursor()
+    c.execute('INSERT INTO events (title, event_date, event_time, description) VALUES (?, ?, ?, ?)',
+              (title, event_date, event_time, description))
+    conn.commit()
+    conn.close()
+    return redirect('/events')
+
+@app.route('/events/delete/<int:event_id>', methods=['POST'])
+def delete_event(event_id):
+    conn = sqlite3.connect('database.db')
+    c = conn.cursor()
+    c.execute('DELETE FROM events WHERE id = ?', (event_id,))
+    conn.commit()
+    conn.close()
+    return redirect('/events')
+
 if __name__ == '__main__':
     app.run(debug=True, port=5001)

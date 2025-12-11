@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="he">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>לוח שנה ואירועים</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <style>
+        .calendar {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 30px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+        .calendar-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #667eea;
+        }
+        .calendar-header h3 {
+            margin: 0;
+            color: #667eea;
+        }
+        .calendar-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 10px;
+            margin-top: 20px;
+        }
+        .calendar-day-header {
+            text-align: center;
+            font-weight: bold;
+            padding: 10px;
+            background: #667eea;
+            color: white;
+            border-radius: 8px;
+        }
+        .calendar-day {
+            text-align: center;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            min-height: 60px;
+            background: white;
+            position: relative;
+        }
+        .calendar-day:hover {
+            background: #f0f0f0;
+            cursor: pointer;
+        }
+        .calendar-day.has-event {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            font-weight: bold;
+        }
+        .calendar-day.today {
+            border: 3px solid #f093fb;
+        }
+        .event-indicator {
+            position: absolute;
+            bottom: 5px;
+            right: 5px;
+            width: 8px;
+            height: 8px;
+            background: #f093fb;
+            border-radius: 50%;
+        }
+        .events-list {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+        .event-item {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .event-info h4 {
+            margin: 0 0 5px 0;
+        }
+        .event-info p {
+            margin: 0;
+            opacity: 0.9;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Navigation Menu -->
+        <nav style="background: rgba(255,255,255,0.95); padding: 15px; border-radius: 12px; margin-bottom: 20px; text-align: center; box-shadow: 0 4px 15px rgba(0,0,0,0.1);">
+            <a href="/tasks" style="margin: 0 15px; font-size: 1.1rem; text-decoration: none; color: #667eea; transition: all 0.3s;">📋 משימות</a>
+            <span style="color: #ccc;">|</span>
+            <a href="/budget" style="margin: 0 15px; font-size: 1.1rem; text-decoration: none; color: #667eea; transition: all 0.3s;">💰 הוצאות</a>
+            <span style="color: #ccc;">|</span>
+            <a href="/suppliers" style="margin: 0 15px; font-size: 1.1rem; text-decoration: none; color: #667eea; transition: all 0.3s;">🏢 ספקים</a>
+            <span style="color: #ccc;">|</span>
+            <a href="/events" style="margin: 0 15px; font-size: 1.1rem; text-decoration: none; color: #667eea; font-weight: bold; transition: all 0.3s;">📅 אירועים</a>
+        </nav>
+
+        <h1>📅 לוח שנה ואירועים</h1>
+
+        <!-- Add Event Form -->
+        <h2>הוספת אירוע חדש</h2>
+        <form action="/events/add" method="post">
+            <input type="text" name="title" placeholder="שם האירוע" required>
+<div style="display: flex; gap: 10px;">
+    <input type="date" name="event_date" required style="flex: 1; direction: ltr;">
+    <input type="time" name="event_time" style="flex: 1; direction: ltr;">
+</div>
+<textarea name="description" placeholder="תיאור (אופציונלי)" rows="3"></textarea>
+            <button type="submit">➕ הוסף אירוע</button>
+        </form>
+
+        <hr>
+
+        <!-- Calendar -->
+        <div class="calendar">
+            <div class="calendar-header">
+                <h3>🗓️ {{ month_name }} {{ year }}</h3>
+            </div>
+            
+            <div class="calendar-grid">
+                <!-- Day Headers -->
+                <div class="calendar-day-header">א'</div>
+                <div class="calendar-day-header">ב'</div>
+                <div class="calendar-day-header">ג'</div>
+                <div class="calendar-day-header">ד'</div>
+                <div class="calendar-day-header">ה'</div>
+                <div class="calendar-day-header">ו'</div>
+                <div class="calendar-day-header">ש'</div>
+                
+                <!-- Calendar Days -->
+                {% for day in calendar_days %}
+                    <div class="calendar-day {% if day.has_event %}has-event{% endif %} {% if day.is_today %}today{% endif %}">
+                        {{ day.day }}
+                        {% if day.has_event %}
+                        <div class="event-indicator"></div>
+                        {% endif %}
+                    </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- Events List -->
+        <div class="events-list">
+            <h2>📋 רשימת אירועים</h2>
+            {% if events %}
+                {% for event in events %}
+                <div class="event-item">
+                    <div class="event-info">
+                        <h4>{{ event.title }}</h4>
+<p style="margin: 5px 0;">📅 תאריך: {{ event.event_date }}</p>
+{% if event.event_time %}
+<p style="margin: 5px 0;">⏰ שעה: <span style="unicode-bidi: embed; direction: ltr;">{{ event.event_time }}</span></p>
+{% endif %}
+</p>
+                        {% if event.description %}
+                        <p>{{ event.description }}</p>
+                        {% endif %}
+                    </div>
+                    <form action="/events/delete/{{ event.id }}" method="post" style="display: inline;">
+                        <button type="submit" style="background: rgba(255,255,255,0.2); border: none; padding: 8px 16px; border-radius: 8px; cursor: pointer; color: white;">🗑️ מחק</button>
+                    </form>
+                </div>
+                {% endfor %}
+            {% else %}
+                <div class="empty-message">
+                    <p>📭 אין אירועים עדיין. הוסף אירוע ראשון!</p>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</body>
+</html>
