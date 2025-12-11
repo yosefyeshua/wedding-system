@@ -19,9 +19,21 @@
 
         <h1>🎊 ניהול משימות</h1>
         
+        <!-- Success Message -->
+        {% if request.args.get('message') == 'sent' %}
+        <div style="background: #4CAF50; color: white; padding: 15px; border-radius: 10px; margin-bottom: 20px; text-align: center;">
+            ✅ תזכורת נשלחה בהצלחה!
+        </div>
+        {% elif request.args.get('message') == 'error' %}
+        <div style="background: #f44336; color: white; padding: 15px; border-radius: 10px; margin-bottom: 20px; text-align: center;">
+            ❌ שגיאה בשליחת תזכורת. וודא שהזנת כתובת מייל תקינה.
+        </div>
+        {% endif %}
+        
         <h2>יצירת משימה חדשה</h2>
         <form action="/tasks/create" method="post">
             <input type="text" name="description" placeholder="תיאור משימה" required>
+            <input type="email" name="email" placeholder="אימייל לתזכורת (אופציונלי)" style="margin-top: 10px;">
             <button type="submit">➕ הוסף משימה</button>
         </form>
 
@@ -43,14 +55,17 @@
             <thead>
                 <tr>
                     <th>תיאור</th>
+                    <th>אימייל</th>
                     <th>סטטוס</th>
+                    <th>תזכורת</th>
                     <th>מחיקה</th>
                 </tr>
             </thead>
             <tbody>
                 {% for task in tasks %}
                 <tr>
-                 <td><strong style="color: black !important;">{{ task.description }}</strong></td>
+                    <td><strong style="color: black !important;">{{ task.description }}</strong></td>
+                    <td>{{ task.email if task.email else '—' }}</td>
                     <td>
                         <form action="/tasks/status/{{ task.id }}" method="post" style="display: inline;">
                             <select name="new_status" onchange="this.form.submit()" style="padding: 8px; border-radius: 8px; border: 1px solid #ddd; background: white;">
@@ -59,6 +74,15 @@
                                 <option value="בוצע" {% if task.status == 'בוצע' %}selected{% endif %}>✅ בוצע</option>
                             </select>
                         </form>
+                    </td>
+                    <td>
+                        {% if task.email %}
+                        <form action="/tasks/remind/{{ task.id }}" method="post" style="display: inline;">
+                            <button type="submit" style="background: #4CAF50; border: none; padding: 8px 16px; border-radius: 8px; cursor: pointer; font-size: 1rem; color: white;">📧 שלח</button>
+                        </form>
+                        {% else %}
+                        <span style="color: #999;">—</span>
+                        {% endif %}
                     </td>
                     <td>
                         <form action="/tasks/delete/{{ task.id }}" method="post" style="display: inline;">

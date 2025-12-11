@@ -3,6 +3,36 @@ import sqlite3
 
 app = Flask(__name__)
 
+# ===== EMAIL SIMULATION =====
+def send_email(to_email, task_description, task_status):
+    """דמיית שליחת מייל תזכורת"""
+    try:
+        # הדפסה ב-Terminal במקום שליחה אמיתית
+        print("\n" + "="*50)
+        print("📧 מייל תזכורת (SIMULATION)")
+        print("="*50)
+        print(f"אל: {to_email}")
+        print(f"נושא: תזכורת: {task_description}")
+        print("-"*50)
+        print(f"""
+שלום,
+
+תזכורת למשימה בחתונה:
+
+📋 משימה: {task_description}
+📊 סטטוס: {task_status}
+
+בהצלחה!
+מערכת ניהול החתונה
+        """)
+        print("="*50)
+        print("✅ מייל נשלח בהצלחה! (simulation)\n")
+        
+        return True
+    except Exception as e:
+        print(f"❌ שגיאה: {e}")
+        return False
+
 # ===== HOME =====
 @app.route('/')
 def index():
@@ -28,12 +58,15 @@ def tasks():
 @app.route('/tasks/create', methods=['POST'])
 def create_task():
     description = request.form['description']
+    email = request.form.get('email', '')
     conn = sqlite3.connect('database.db')
     c = conn.cursor()
-    c.execute('INSERT INTO tasks (title, description, status) VALUES (?, ?, ?)', (description, description, 'חדש'))
+    c.execute('INSERT INTO tasks (title, description, status, email) VALUES (?, ?, ?, ?)', 
+              (description, description, 'חדש', email))
     conn.commit()
     conn.close()
     return redirect('/tasks')
+
 @app.route('/tasks/status/<int:task_id>', methods=['POST'])
 def update_task_status(task_id):
     new_status = request.form['new_status']
@@ -52,6 +85,23 @@ def delete_task(task_id):
     conn.commit()
     conn.close()
     return redirect('/tasks')
+
+@app.route('/tasks/remind/<int:task_id>', methods=['POST'])
+def remind_task(task_id):
+    """שליחת תזכורת במייל"""
+    conn = sqlite3.connect('database.db')
+    conn.row_factory = sqlite3.Row
+    c = conn.cursor()
+    c.execute('SELECT * FROM tasks WHERE id = ?', (task_id,))
+    task = c.fetchone()
+    conn.close()
+    
+    if task and task['email']:
+        success = send_email(task['email'], task['description'], task['status'])
+        if success:
+            return redirect('/tasks?message=sent')
+    
+    return redirect('/tasks?message=error')
 
 # ===== BUDGET ROUTES =====
 @app.route('/budget')
