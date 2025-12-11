@@ -35,7 +35,10 @@
         <h2>יצירת משימה חדשה</h2>
         <form action="/tasks/create" method="post">
             <input type="text" name="description" placeholder="תיאור משימה" required>
-            <input type="email" name="email" placeholder="אימייל לתזכורת (אופציונלי)" style="margin-top: 10px;">
+            <div style="display: flex; gap: 10px; margin-top: 10px;">
+                <input type="email" name="email" placeholder="אימייל לתזכורת (אופציונלי)" style="flex: 1;">
+                <input type="date" name="due_date" placeholder="תאריך יעד" style="flex: 1; direction: ltr;">
+            </div>
             <button type="submit">➕ הוסף משימה</button>
         </form>
 
@@ -57,6 +60,7 @@
             <thead>
                 <tr>
                     <th>תיאור</th>
+                    <th>תאריך יעד</th>
                     <th>אימייל</th>
                     <th>סטטוס</th>
                     <th>תזכורת</th>
@@ -67,6 +71,7 @@
                 {% for task in tasks %}
                 <tr>
                     <td><strong style="color: black !important;">{{ task.description }}</strong></td>
+                    <td>{{ task.due_date if task.due_date else '—' }}</td>
                     <td>{{ task.email if task.email else '—' }}</td>
                     <td>
                         <form action="/tasks/status/{{ task.id }}" method="post" style="display: inline;">

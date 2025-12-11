@@ -41,28 +41,42 @@ def index():
 # ===== TASKS ROUTES =====
 @app.route('/tasks')
 def tasks():
+    from datetime import datetime
+    
     status_filter = request.args.get('status')
     conn = sqlite3.connect('database.db')
     conn.row_factory = sqlite3.Row
     c = conn.cursor()
     
     if status_filter:
-        c.execute('SELECT * FROM tasks WHERE status = ?', (status_filter,))
+        c.execute('SELECT * FROM tasks WHERE status = ? ORDER BY due_date ASC, id DESC', (status_filter,))
     else:
-        c.execute('SELECT * FROM tasks')
+        c.execute('SELECT * FROM tasks ORDER BY due_date ASC, id DESC')
     
-    tasks = c.fetchall()
+    tasks_raw = c.fetchall()
     conn.close()
+    
+    # Format tasks with Hebrew dates
+    tasks = []
+    for task in tasks_raw:
+        task_dict = dict(task)
+        # Format date as DD/MM/YYYY
+        if task['due_date']:
+            date_obj = datetime.strptime(task['due_date'], '%Y-%m-%d')
+            task_dict['due_date'] = date_obj.strftime('%d/%m/%Y')
+        tasks.append(task_dict)
+    
     return render_template('tasks.html', tasks=tasks)
 
 @app.route('/tasks/create', methods=['POST'])
 def create_task():
     description = request.form['description']
     email = request.form.get('email', '')
+    due_date = request.form.get('due_date', '')
     conn = sqlite3.connect('database.db')
     c = conn.cursor()
-    c.execute('INSERT INTO tasks (title, description, status, email) VALUES (?, ?, ?, ?)', 
-              (description, description, 'חדש', email))
+    c.execute('INSERT INTO tasks (title, description, status, email, due_date) VALUES (?, ?, ?, ?, ?)', 
+              (description, description, 'חדש', email, due_date))
     conn.commit()
     conn.close()
     return redirect('/tasks')
