@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>אודות - מערכת ניהול חתונה</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <style>
+        /* Additional styles for About page */
+        .about-hero {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 60px 20px;
+            text-align: center;
+            border-radius: 20px;
+            margin-bottom: 40px;
+            box-shadow: 0 10px 40px rgba(102, 126, 234, 0.3);
+        }
+
+        .about-hero h1 {
+            font-size: 3em;
+            margin: 0 0 15px 0;
+            animation: fadeInDown 0.8s;
+        }
+
+        .about-hero p {
+            font-size: 1.3em;
+            opacity: 0.95;
+            max-width: 800px;
+            margin: 0 auto;
+            line-height: 1.8;
+            animation: fadeInUp 0.8s;
+        }
+
+        .section-title {
+            font-size: 2.2em;
+            margin: 50px 0 30px 0;
+            color: #667eea;
+            text-align: center;
+            position: relative;
+        }
+
+        .section-title::after {
+            content: '';
+            display: block;
+            width: 80px;
+            height: 4px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            margin: 15px auto 0;
+            border-radius: 2px;
+        }
+
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 25px;
+            margin: 40px 0;
+        }
+
+        .feature-card {
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+            transition: transform 0.3s, box-shadow 0.3s;
+            border-top: 4px solid #667eea;
+        }
+
+        .feature-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.2);
+        }
+
+        .feature-card .icon {
+            font-size: 3.5em;
+            margin-bottom: 15px;
+        }
+
+        .feature-card h3 {
+            color: #333;
+            margin: 0 0 12px 0;
+            font-size: 1.4em;
+        }
+
+        .feature-card p {
+            color: #666;
+            line-height: 1.7;
+            margin: 0;
+        }
+
+        .team-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 30px;
+            margin: 40px 0;
+        }
+
+        .team-member {
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+            text-align: center;
+            transition: transform 0.3s;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .team-member::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 5px;
+            background: var(--member-color, linear-gradient(135deg, #667eea 0%, #764ba2 100%));
+        }
+
+        .team-member:hover {
+            transform: translateY(-8px);
+        }
+
+        .team-member .avatar {
+            font-size: 5em;
+            margin-bottom: 15px;
+            display: block;
+        }
+
+        .team-member h3 {
+            color: #333;
+            margin: 0 0 8px 0;
+            font-size: 1.3em;
+        }
+
+        .team-member .role {
+            color: #667eea;
+            font-weight: bold;
+            margin-bottom: 12px;
+            font-size: 0.95em;
+        }
+
+        .team-member p {
+            color: #666;
+            font-size: 0.9em;
+            line-height: 1.6;
+        }
+
+        .tech-badges {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 15px;
+            margin: 40px 0;
+        }
+
+        .tech-badge {
+            background: white;
+            padding: 15px 25px;
+            border-radius: 50px;
+            box-shadow: 0 3px 10px rgba(0,0,0,0.1);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-weight: bold;
+            color: #333;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .tech-badge:hover {
+            transform: scale(1.05);
+            box-shadow: 0 5px 20px rgba(102, 126, 234, 0.3);
+        }
+
+        .tech-badge .icon {
+            font-size: 1.8em;
+        }
+
+        .info-box {
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            padding: 30px;
+            border-radius: 15px;
+            text-align: center;
+            margin: 40px 0;
+            border-right: 5px solid #667eea;
+        }
+
+        .info-box h3 {
+            color: #333;
+            margin: 0 0 15px 0;
+            font-size: 1.5em;
+        }
+
+        .info-box p {
+            color: #555;
+            margin: 8px 0;
+            font-size: 1.1em;
+        }
+
+        @keyframes fadeInDown {
+            from {
+                opacity: 0;
+                transform: translateY(-30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="navbar">
+        <div class="nav-container">
+            <h1 class="nav-logo">💍 מערכת ניהול חתונה</h1>
+            <ul class="nav-menu">
+                <li><a href="/">🏠 דף הבית</a></li>
+                <li><a href="/tasks">📋 משימות</a></li>
+                <li><a href="/events">📅 אירועים</a></li>
+                <li><a href="/suppliers">🏪 ספקים</a></li>
+                <li><a href="/budget">💰 תקציב</a></li>
+                <li><a href="/settings">⚙️ הגדרות</a></li>
+                <li><a href="/about" class="active">📄 אודות</a></li>
+                <li><a href="/logout" class="logout-btn">🚪 יציאה</a></li>
+            </ul>
+        </div>
+    </nav>
+
+    <div class="container" style="max-width: 1200px; padding: 20px;">
+
+        <!-- Hero Section -->
+        <div class="about-hero">
+            <h1>💍 {{ system_info['name'] }}</h1>
+            <p>{{ system_info['description'] }}</p>
+        </div>
+
+        <!-- Why We Built This -->
+        <div style="background: white; padding: 40px; border-radius: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.08); margin-bottom: 50px; text-align: center;">
+            <h2 style="color: #667eea; font-size: 2em; margin-bottom: 20px;">🎯 למה בנינו את המערכת?</h2>
+            <p style="font-size: 1.15em; color: #555; line-height: 1.9; max-width: 800px; margin: 0 auto;">
+                תכנון חתונה יכול להיות מלחיץ ומבלבל. אלפי פרטים לזכור, עשרות ספקים לתאם, 
+                תקציב לשמור עליו. בנינו את המערכת הזאת במסגרת פרויקט לימודי כדי להפוך את 
+                התהליך לפשוט יותר ולעזור לזוגות ליהנות מהדרך. המערכת מרכזת את כל המידע 
+                במקום אחד, מאפשרת שיתוף פעולה בין בני הזוג, ועוזרת לשמור על שליטה מלאה 
+                על כל היבטי התכנון.
+            </p>
+        </div>
+
+        <!-- Features Section -->
+        <h2 class="section-title">✨ התכונות העיקריות</h2>
+        <div class="features-grid">
+            {% for feature in features %}
+            <div class="feature-card">
+                <div class="icon">{{ feature['icon'] }}</div>
+                <h3>{{ feature['title'] }}</h3>
+                <p>{{ feature['description'] }}</p>
+            </div>
+            {% endfor %}
+        </div>
+
+        <!-- Team Section -->
+        <h2 class="section-title">👥 הצוות המפתח</h2>
+        <div class="team-grid">
+            {% for member in team_members %}
+            <div class="team-member" style="--member-color: {{ member['color'] }};">
+                <span class="avatar">{{ member['icon'] }}</span>
+                <h3>{{ member['name'] }}</h3>
+                <div class="role">{{ member['role'] }}</div>
+                <p>{{ member['description'] }}</p>
+            </div>
+            {% endfor %}
+        </div>
+
+        <!-- Technologies Section -->
+        <h2 class="section-title">🛠️ הטכנולוגיות</h2>
+        <div class="tech-badges">
+            {% for tech in technologies %}
+            <div class="tech-badge">
+                <span class="icon">{{ tech['icon'] }}</span>
+                <span>{{ tech['name'] }}</span>
+            </div>
+            {% endfor %}
+        </div>
+
+        <!-- Version Info -->
+        <div class="info-box">
+            <h3>📦 מידע על הגרסה</h3>
+            <p><strong>גרסה נוכחית:</strong> {{ system_info['version'] }}</p>
+            <p><strong>תאריך עדכון:</strong> {{ system_info['release_date'] }}</p>
+            <p style="margin-top: 20px; color: #667eea; font-size: 0.95em;">
+                💡 המערכת מתעדכנת באופן שוטף עם תכונות חדשות ושיפורים
+            </p>
+        </div>
+
+        <!-- Project Info -->
+        <div style="background: linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%); padding: 40px; border-radius: 15px; text-align: center; margin: 40px 0;">
+            <h2 style="color: #333; font-size: 2em; margin-bottom: 15px;">🎓 פרויקט לימודי</h2>
+            <p style="font-size: 1.1em; color: #555; line-height: 1.8; max-width: 700px; margin: 0 auto;">
+                מערכת זו פותחה במסגרת קורס פיתוח אפליקציות Web, עם דגש על 
+                תכנון נכון, עבודת צוות, וחוויית משתמש מעולה. המערכת משלבת טכנולוגיות 
+                מתקדמות ועקרונות פיתוח מודרניים.
+            </p>
+        </div>
+
+        <!-- Back to Home -->
+        <div style="text-align: center; margin: 50px 0 30px 0;">
+            <a href="/" style="display: inline-block; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 15px 40px; border-radius: 50px; text-decoration: none; font-weight: bold; font-size: 1.1em; box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3); transition: transform 0.2s, box-shadow 0.2s;" onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 6px 20px rgba(102, 126, 234, 0.4)';" onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 4px 15px rgba(102, 126, 234, 0.3)';">
+                🏠 חזרה לדף הבית
+            </a>
+        </div>
+
+    </div>
+
+</body>
+</html>

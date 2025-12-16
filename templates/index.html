@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>דף הבית - מערכת ניהול חתונה</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="navbar">
+        <div class="nav-container">
+            <h1 class="nav-logo">💍 מערכת ניהול חתונה</h1>
+            <ul class="nav-menu">
+                <li><a href="/" class="active">🏠 דף הבית</a></li>
+                <li><a href="/tasks">📋 משימות</a></li>
+                <li><a href="/events">📅 אירועים</a></li>
+                <li><a href="/suppliers">🏪 ספקים</a></li>
+                <li><a href="/budget">💰 תקציב</a></li>
+                <li><a href="/settings">⚙️ הגדרות</a></li>
+                <li><a href="/about">📄 אודות</a></li>
+                <li><a href="/logout" class="logout-btn">🚪 יציאה</a></li>
+            </ul>
+        </div>
+    </nav>
+
+    <div class="container" style="max-width: 1400px; padding: 20px;">
+        
+        <!-- Flash Messages -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ category }}">
+                        {{ message }}
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+
+        <!-- Welcome Header -->
+        <div class="dashboard-header" style="text-align: center; margin-bottom: 30px;">
+            <h1 style="font-size: 2.5em; margin-bottom: 10px;">
+                👋 שלום, {{ user['full_name'] }}!
+            </h1>
+            {% if user['partner_name'] %}
+                <p style="font-size: 1.2em; color: #666;">
+                    🤝 משותף עם: {{ user['partner_name'] }}
+                </p>
+            {% endif %}
+        </div>
+
+        <!-- Statistics Cards -->
+        <div class="stats-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; margin-bottom: 30px;">
+            
+            <!-- Tasks Card -->
+            <div class="stat-card" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 25px; border-radius: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.1);">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <div>
+                        <p style="font-size: 0.9em; opacity: 0.9; margin-bottom: 5px;">משימות פתוחות</p>
+                        <h2 style="font-size: 2.5em; margin: 0;">{{ stats['pending_tasks'] }}</h2>
+                    </div>
+                    <div style="font-size: 3em; opacity: 0.3;">📋</div>
+                </div>
+                <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid rgba(255,255,255,0.2);">
+                    <p style="font-size: 0.85em; margin: 0;">✅ הושלמו: {{ stats['completed_tasks'] }}</p>
+                </div>
+            </div>
+
+            <!-- Budget Card -->
+            <div class="stat-card" style="background: {% if stats['is_over_budget'] %}linear-gradient(135deg, #f093fb 0%, #f5576c 100%){% else %}linear-gradient(135deg, #4facfe 0%, #00f2fe 100%){% endif %}; color: white; padding: 25px; border-radius: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.1);">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <div>
+                        <p style="font-size: 0.9em; opacity: 0.9; margin-bottom: 5px;">תקציב</p>
+                        {% if stats['budget_limit'] > 0 %}
+                            <h2 style="font-size: 1.8em; margin: 0;">₪{{ "{:,.0f}".format(stats['total_spent']) }}</h2>
+                        {% else %}
+                            <h2 style="font-size: 1.5em; margin: 0;">לא הוגדר</h2>
+                        {% endif %}
+                    </div>
+                    <div style="font-size: 3em; opacity: 0.3;">💰</div>
+                </div>
+                {% if stats['budget_limit'] > 0 %}
+                <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid rgba(255,255,255,0.2);">
+                    <div style="display: flex; justify-content: space-between; font-size: 0.85em; margin-bottom: 8px;">
+                        <span>{{ stats['budget_percentage'] }}%</span>
+                        <span>מתוך ₪{{ "{:,.0f}".format(stats['budget_limit']) }}</span>
+                    </div>
+                    <div style="background: rgba(255,255,255,0.3); height: 8px; border-radius: 10px; overflow: hidden;">
+                        <div style="background: white; height: 100%; width: {{ stats['budget_percentage'] }}%; transition: width 0.3s;"></div>
+                    </div>
+                    {% if stats['is_over_budget'] %}
+                        <p style="font-size: 0.85em; margin-top: 8px; margin-bottom: 0;">⚠️ חריגה: ₪{{ "{:,.0f}".format(stats['total_spent'] - stats['budget_limit']) }}</p>
+                    {% else %}
+                        <p style="font-size: 0.85em; margin-top: 8px; margin-bottom: 0;">נותר: ₪{{ "{:,.0f}".format(stats['budget_remaining']) }}</p>
+                    {% endif %}
+                </div>
+                {% else %}
+                <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid rgba(255,255,255,0.2);">
+                    <a href="/settings" style="color: white; text-decoration: underline; font-size: 0.9em;">הגדר תקציב כולל ⚙️</a>
+                </div>
+                {% endif %}
+            </div>
+
+            <!-- Suppliers Card -->
+            <div class="stat-card" style="background: linear-gradient(135deg, #fa709a 0%, #fee140 100%); color: white; padding: 25px; border-radius: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.1);">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <div>
+                        <p style="font-size: 0.9em; opacity: 0.9; margin-bottom: 5px;">ספקים</p>
+                        <h2 style="font-size: 2.5em; margin: 0;">{{ stats['total_suppliers'] }}</h2>
+                    </div>
+                    <div style="font-size: 3em; opacity: 0.3;">🏪</div>
+                </div>
+                <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid rgba(255,255,255,0.2);">
+                    <a href="/suppliers" style="color: white; text-decoration: underline; font-size: 0.9em;">צפה בכל הספקים →</a>
+                </div>
+            </div>
+
+            <!-- Events Card -->
+            <div class="stat-card" style="background: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%); color: #333; padding: 25px; border-radius: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.1);">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <div>
+                        <p style="font-size: 0.9em; opacity: 0.8; margin-bottom: 5px;">אירועים קרובים</p>
+                        <h2 style="font-size: 2.5em; margin: 0;">{{ stats['upcoming_events']|length }}</h2>
+                    </div>
+                    <div style="font-size: 3em; opacity: 0.3;">📅</div>
+                </div>
+                <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid rgba(0,0,0,0.1);">
+                    <p style="font-size: 0.85em; margin: 0;">בשבוע הקרוב</p>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- Main Content Grid -->
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 30px;">
+            
+            <!-- Upcoming Events -->
+            <div style="background: white; padding: 25px; border-radius: 15px; box-shadow: 0 2px 10px rgba(0,0,0,0.05);">
+                <h2 style="margin-bottom: 20px; color: #667eea; display: flex; align-items: center; gap: 10px;">
+                    📅 אירועים קרובים (7 ימים)
+                </h2>
+                {% if stats['upcoming_events']|length > 0 %}
+                    <div style="display: flex; flex-direction: column; gap: 15px;">
+                        {% for event in stats['upcoming_events'] %}
+                        <div style="padding: 15px; background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%); border-radius: 10px; border-right: 4px solid #667eea;">
+                            <h3 style="margin: 0 0 8px 0; color: #333;">{{ event['title'] }}</h3>
+                            <p style="margin: 0; color: #666; font-size: 0.9em;">
+                                📅 {{ event['event_date'] }}
+                                {% if event['event_time'] %}
+                                    | ⏰ {{ event['event_time'] }}
+                                {% endif %}
+                            </p>
+                            {% if event['description'] %}
+                            <p style="margin: 8px 0 0 0; color: #555; font-size: 0.85em;">{{ event['description'] }}</p>
+                            {% endif %}
+                        </div>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <div style="text-align: center; padding: 40px 20px; color: #999;">
+                        <p style="font-size: 3em; margin: 0;">📭</p>
+                        <p style="margin: 10px 0 0 0;">אין אירועים קרובים</p>
+                        <a href="/events" style="color: #667eea; text-decoration: none; font-size: 0.9em;">הוסף אירוע ראשון →</a>
+                    </div>
+                {% endif %}
+            </div>
+
+            <!-- Daily Tip -->
+            <div style="background: white; padding: 25px; border-radius: 15px; box-shadow: 0 2px 10px rgba(0,0,0,0.05);">
+                <h2 style="margin-bottom: 20px; color: #667eea; display: flex; align-items: center; gap: 10px;">
+                    💡 הטיפ היומי
+                </h2>
+                <div style="padding: 20px; background: linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%); border-radius: 10px;">
+                    <span style="display: inline-block; background: white; color: #ff6b6b; padding: 5px 12px; border-radius: 20px; font-size: 0.8em; font-weight: bold; margin-bottom: 15px;">
+                        {{ daily_tip['category'] }}
+                    </span>
+                    <p style="margin: 0; color: #333; font-size: 1.1em; line-height: 1.6;">
+                        {{ daily_tip['tip'] }}
+                    </p>
+                </div>
+
+                <!-- Quick Stats Summary -->
+                <div style="margin-top: 25px; padding-top: 20px; border-top: 2px solid #f0f0f0;">
+                    <h3 style="margin-bottom: 15px; color: #333; font-size: 1.1em;">📊 סיכום מהיר</h3>
+                    <div style="display: flex; flex-direction: column; gap: 10px;">
+                        <div style="display: flex; justify-content: space-between; padding: 10px; background: #f8f9fa; border-radius: 8px;">
+                            <span>✅ משימות שהושלמו:</span>
+                            <strong>{{ stats['completed_tasks'] }}</strong>
+                        </div>
+                        <div style="display: flex; justify-content: space-between; padding: 10px; background: #f8f9fa; border-radius: 8px;">
+                            <span>⏳ משימות פתוחות:</span>
+                            <strong>{{ stats['pending_tasks'] }}</strong>
+                        </div>
+                        <div style="display: flex; justify-content: space-between; padding: 10px; background: #f8f9fa; border-radius: 8px;">
+                            <span>🏪 ספקים רשומים:</span>
+                            <strong>{{ stats['total_suppliers'] }}</strong>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- Quick Actions -->
+        <div style="background: white; padding: 25px; border-radius: 15px; box-shadow: 0 2px 10px rgba(0,0,0,0.05);">
+            <h2 style="margin-bottom: 20px; color: #667eea;">⚡ פעולות מהירות</h2>
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">
+                <a href="/tasks" style="text-decoration: none; color: inherit; padding: 20px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border-radius: 10px; text-align: center; transition: transform 0.2s;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'">
+                    <div style="font-size: 2em; margin-bottom: 8px;">📋</div>
+                    <div style="font-weight: bold;">הוסף משימה</div>
+                </a>
+                <a href="/events" style="text-decoration: none; color: inherit; padding: 20px; background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); color: white; border-radius: 10px; text-align: center; transition: transform 0.2s;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'">
+                    <div style="font-size: 2em; margin-bottom: 8px;">📅</div>
+                    <div style="font-weight: bold;">הוסף אירוע</div>
+                </a>
+                <a href="/suppliers" style="text-decoration: none; color: inherit; padding: 20px; background: linear-gradient(135deg, #fa709a 0%, #fee140 100%); color: white; border-radius: 10px; text-align: center; transition: transform 0.2s;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'">
+                    <div style="font-size: 2em; margin-bottom: 8px;">🏪</div>
+                    <div style="font-weight: bold;">הוסף ספק</div>
+                </a>
+                <a href="/budget" style="text-decoration: none; color: inherit; padding: 20px; background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); color: white; border-radius: 10px; text-align: center; transition: transform 0.2s;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'">
+                    <div style="font-size: 2em; margin-bottom: 8px;">💰</div>
+                    <div style="font-weight: bold;">הוסף הוצאה</div>
+                </a>
+            </div>
+        </div>
+
+    </div>
+
+</body>
+</html>

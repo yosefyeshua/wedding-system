@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>הגדרות - מערכת ניהול חתונה</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <!-- Navigation Menu -->
+        <nav style="background: rgba(255,255,255,0.95); padding: 15px; border-radius: 12px; margin-bottom: 20px; text-align: center; box-shadow: 0 4px 15px rgba(0,0,0,0.1);">
+            <a href="/" style="margin: 0 15px; font-size: 1.1rem; text-decoration: none; color: #667eea; transition: all 0.3s;">🏠 דף הבית</a>
+            <span style="color: #ccc;">|</span>
+            <a href="/tasks" style="margin: 0 15px; font-size: 1.1rem; text-decoration: none; color: #667eea; transition: all 0.3s;">📋 משימות</a>
+            <span style="color: #ccc;">|</span>
+            <a href="/budget" style="margin: 0 15px; font-size: 1.1rem; text-decoration: none; color: #667eea; transition: all 0.3s;">💰 הוצאות</a>
+            <span style="color: #ccc;">|</span>
+            <a href="/suppliers" style="margin: 0 15px; font-size: 1.1rem; text-decoration: none; color: #667eea; transition: all 0.3s;">🏢 ספקים</a>
+            <span style="color: #ccc;">|</span>
+            <a href="/events" style="margin: 0 15px; font-size: 1.1rem; text-decoration: none; color: #667eea; transition: all 0.3s;">📅 אירועים</a>
+            <span style="color: #ccc;">|</span>
+            <a href="/settings" style="margin: 0 15px; font-size: 1.1rem; text-decoration: none; color: #667eea; font-weight: bold; transition: all 0.3s;">⚙️ הגדרות</a>
+            <span style="color: #ccc;">|</span>
+            <a href="/logout" style="margin: 0 15px; font-size: 1.1rem; text-decoration: none; color: #e74c3c; transition: all 0.3s;">🚪 יציאה</a>
+        </nav>
+
+        <h1>⚙️ הגדרות חשבון</h1>
+        
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ category }}">{{ message }}</div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+
+        <!-- User Info -->
+        <div class="settings-section" style="background: white; padding: 25px; border-radius: 15px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); margin-bottom: 25px;">
+            <h2 style="margin-top: 0; color: #667eea; display: flex; align-items: center; gap: 10px;">
+                👤 פרטי משתמש
+            </h2>
+            <div style="display: grid; gap: 15px;">
+                <div style="display: flex; justify-content: space-between; padding: 12px; background: #f8f9fa; border-radius: 8px;">
+                    <span style="color: #666;">שם מלא:</span>
+                    <strong>{{ user.full_name }}</strong>
+                </div>
+                <div style="display: flex; justify-content: space-between; padding: 12px; background: #f8f9fa; border-radius: 8px;">
+                    <span style="color: #666;">אימייל:</span>
+                    <strong>{{ user.email }}</strong>
+                </div>
+                <div style="display: flex; justify-content: space-between; padding: 12px; background: #f8f9fa; border-radius: 8px;">
+                    <span style="color: #666;">תאריך הצטרפות:</span>
+                    <strong>{{ user.created_at[:10] }}</strong>
+                </div>
+            </div>
+        </div>
+
+        <!-- Budget Limit -->
+        <div class="settings-section" style="background: white; padding: 25px; border-radius: 15px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); margin-bottom: 25px;">
+            <h2 style="margin-top: 0; color: #667eea; display: flex; align-items: center; gap: 10px;">
+                💰 הגדרת תקציב כולל
+            </h2>
+            
+            {% if user.budget_limit and user.budget_limit > 0 %}
+                <div style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); color: white; padding: 20px; border-radius: 12px; margin-bottom: 20px; text-align: center;">
+                    <p style="margin: 0; font-size: 0.9em; opacity: 0.9;">תקציב כולל מוגדר</p>
+                    <h2 style="margin: 10px 0; font-size: 2.5em;">₪{{ "{:,.0f}".format(user.budget_limit) }}</h2>
+                </div>
+            {% endif %}
+            
+            <p style="color: #666; margin-bottom: 20px;">
+                הגדר תקציב כולל לחתונה כדי לעקוב אחרי ההוצאות ולקבל התראות על חריגה
+            </p>
+            
+            <form action="/settings" method="post">
+                <input type="hidden" name="action" value="set_budget">
+                <div style="display: grid; grid-template-columns: 1fr auto; gap: 15px; align-items: end;">
+                    <div>
+                        <label style="display: block; margin-bottom: 8px; color: #666; font-size: 0.9em;">תקציב כולל (₪)</label>
+                        <input type="number" name="budget_limit" placeholder="לדוגמה: 200000" step="1" min="0" value="{{ user.budget_limit if user.budget_limit else '' }}" required style="width: 100%; padding: 12px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 1em;">
+                    </div>
+                    <button type="submit" style="padding: 12px 30px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; border-radius: 8px; font-size: 1em; font-weight: bold; cursor: pointer; transition: transform 0.2s; white-space: nowrap;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'">
+                        💾 שמור תקציב
+                    </button>
+                </div>
+            </form>
+            
+            <div style="background: #fff3cd; border: 2px solid #ffc107; border-radius: 10px; padding: 15px; margin-top: 20px;">
+                <p style="margin: 0; color: #856404; display: flex; align-items: center; gap: 10px;">
+                    <span style="font-size: 1.5em;">💡</span>
+                    <span><strong>טיפ:</strong> התקציב המומלץ לחתונה בישראל הוא בין ₪150,000 ל-₪300,000 בהתאם למספר האורחים והמיקום.</span>
+                </p>
+            </div>
+        </div>
+
+        <!-- Partner Sharing -->
+        <div class="settings-section" style="background: white; padding: 25px; border-radius: 15px; box-shadow: 0 2px 10px rgba(0,0,0,0.05);">
+            <h2 style="margin-top: 0; color: #667eea; display: flex; align-items: center; gap: 10px;">
+                💑 שיתוף עם בן/בת זוג
+            </h2>
+            
+            {% if user.partner_id %}
+                <div style="background: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%); padding: 20px; border-radius: 12px; border-right: 5px solid #667eea; margin-bottom: 20px;">
+                    <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 15px;">
+                        <div style="font-size: 2.5em;">✅</div>
+                        <div>
+                            <p style="margin: 0; font-size: 1.2em; font-weight: bold; color: #333;">החשבון משותף עם: {{ user.partner_name }}</p>
+                            <p style="margin: 5px 0 0 0; color: #666; font-size: 0.9em;">שניכם יכולים לראות ולערוך את כל המשימות, ההוצאות, הספקים והאירועים</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <form action="/settings" method="post" style="margin-top: 20px;">
+                    <input type="hidden" name="action" value="unshare">
+                    <button type="submit" onclick="return confirm('האם אתה בטוח שברצונך להסיר את השיתוף?')" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); color: white; border: none; padding: 12px 30px; border-radius: 8px; font-size: 1em; font-weight: bold; cursor: pointer; transition: transform 0.2s;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'">
+                        ❌ הסר שיתוף
+                    </button>
+                </form>
+            {% else %}
+                <p style="color: #666; margin-bottom: 20px;">שתף את החשבון שלך עם בן/בת הזוג כדי לנהל את החתונה ביחד</p>
+                
+                <form action="/settings" method="post">
+                    <input type="hidden" name="action" value="share">
+                    <div style="margin-bottom: 15px;">
+                        <label style="display: block; margin-bottom: 8px; color: #666; font-size: 0.9em;">📧 אימייל של בן/בת הזוג</label>
+                        <input type="email" name="partner_email" placeholder="partner@email.com" required style="width: 100%; padding: 12px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 1em;">
+                    </div>
+                    <button type="submit" style="width: 100%; padding: 12px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; border-radius: 8px; font-size: 1em; font-weight: bold; cursor: pointer; transition: transform 0.2s;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'">
+                        🤝 שתף חשבון
+                    </button>
+                </form>
+                
+                <div style="background: #e7f3ff; border: 2px solid #2196F3; border-radius: 10px; padding: 20px; margin-top: 20px;">
+                    <p style="margin: 0 0 10px 0; font-weight: bold; color: #0d47a1;">💡 שימו לב:</p>
+                    <ul style="text-align: right; padding-right: 20px; margin: 0; color: #1565c0;">
+                        <li style="margin-bottom: 8px;">בן/בת הזוג חייבים להיות רשומים במערכת</li>
+                        <li style="margin-bottom: 8px;">השיתוף הוא דו-כיווני - שניכם תראו את כל המידע</li>
+                        <li>ניתן להסיר את השיתוף בכל עת</li>
+                    </ul>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</body>
+</html>

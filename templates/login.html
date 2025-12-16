@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="he">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>התחברות - מערכת ניהול חתונה</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <div class="container auth-container">
+        <div class="auth-box">
+            <h1>💍 מערכת ניהול חתונה</h1>
+            <h2>התחברות</h2>
+            
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    {% for category, message in messages %}
+                        <div class="alert alert-{{ category }}">{{ message }}</div>
+                    {% endfor %}
+                {% endif %}
+            {% endwith %}
+            
+            <form action="/login" method="post" class="auth-form">
+                <div class="form-group">
+                    <label>📧 אימייל</label>
+                    <input type="email" name="email" placeholder="example@email.com" required autofocus>
+                </div>
+                
+                <div class="form-group">
+                    <label>🔒 סיסמה</label>
+                    <input type="password" name="password" placeholder="הקלד סיסמה" required>
+                </div>
+                
+                <button type="submit" class="btn-primary">🔓 התחבר</button>
+                
+                <div class="auth-footer">
+                    <p><a href="/forgot-password">שכחתי סיסמה</a></p>
+                    <p>עדיין לא רשומים? <a href="/register">הירשם כאן</a></p>
+                </div>
+            </form>
+        </div>
+    </div>
+</body>
+</html>

@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="he">
+<html lang="he" dir="rtl">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -10,25 +10,105 @@
     <div class="container">
         <!-- Navigation Menu -->
         <nav style="background: rgba(255,255,255,0.95); padding: 15px; border-radius: 12px; margin-bottom: 20px; text-align: center; box-shadow: 0 4px 15px rgba(0,0,0,0.1);">
+            <a href="/" style="margin: 0 15px; font-size: 1.1rem; text-decoration: none; color: #667eea; transition: all 0.3s;">🏠 דף הבית</a>
+            <span style="color: #ccc;">|</span>
             <a href="/tasks" style="margin: 0 15px; font-size: 1.1rem; text-decoration: none; color: #667eea; transition: all 0.3s;">📋 משימות</a>
             <span style="color: #ccc;">|</span>
             <a href="/budget" style="margin: 0 15px; font-size: 1.1rem; text-decoration: none; color: #667eea; transition: all 0.3s;">💰 הוצאות</a>
             <span style="color: #ccc;">|</span>
             <a href="/suppliers" style="margin: 0 15px; font-size: 1.1rem; text-decoration: none; color: #667eea; font-weight: bold; transition: all 0.3s;">🏢 ספקים</a>
             <span style="color: #ccc;">|</span>
-<a href="/events" style="margin: 0 15px; font-size: 1.1rem; text-decoration: none; color: #667eea; transition: all 0.3s;">📅 אירועים</a>
+            <a href="/events" style="margin: 0 15px; font-size: 1.1rem; text-decoration: none; color: #667eea; transition: all 0.3s;">📅 אירועים</a>
+            <span style="color: #ccc;">|</span>
+            <a href="/settings" style="margin: 0 15px; font-size: 1.1rem; text-decoration: none; color: #667eea; transition: all 0.3s;">⚙️ הגדרות</a>
+            <span style="color: #ccc;">|</span>
+            <a href="/logout" style="margin: 0 15px; font-size: 1.1rem; text-decoration: none; color: #e74c3c; transition: all 0.3s;">🚪 יציאה</a>
         </nav>
+
+        <!-- Daily Tip -->
+        {% if daily_tip %}
+        <div class="daily-tip">
+            <div class="tip-header">💡 טיפ היום - {{ daily_tip.category }}</div>
+            <div class="tip-content">{{ daily_tip.tip }}</div>
+        </div>
+        {% endif %}
 
         <h1>🏢 ניהול ספקים</h1>
         
+        <!-- Flash Messages -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ category }}">{{ message }}</div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+
         <h2>הוספת ספק חדש</h2>
         <form action="/suppliers/add" method="post">
             <input type="text" name="name" placeholder="שם הספק (לדוגמה: אולם אירועים רויאל)" required>
             <input type="text" name="phone" placeholder="טלפון (לדוגמה: 050-1234567)">
-            <input type="text" name="category" placeholder="קטגוריה (לדוגמה: אולמות)" required>
-            <input type="number" step="0.01" name="price" placeholder="מחיר משוער בשקלים">
+            
+            <select name="category" id="categorySelect" onchange="toggleCustomCategory()" style="margin-top: 10px;">
+                <option value="">בחר קטגוריה</option>
+                <option value="אולם">אולם</option>
+                <option value="צלם">צלם</option>
+                <option value="DJ">DJ</option>
+                <option value="קייטרינג">קייטרינג</option>
+                <option value="פרחים">פרחים</option>
+                <option value="הסעות">הסעות</option>
+                <option value="custom">➕ אחר (קטגוריה חדשה)</option>
+            </select>
+
+            <input type="text" name="custom_category" id="customCategory" placeholder="הקלד קטגוריה חדשה" style="display: none; margin-top: 10px;">
+
+            <script>
+            function toggleCustomCategory() {
+                const select = document.getElementById('categorySelect');
+                const customInput = document.getElementById('customCategory');
+                
+                if (select.value === 'custom') {
+                    customInput.style.display = 'block';
+                    customInput.required = true;
+                    select.removeAttribute('required');
+                } else {
+                    customInput.style.display = 'none';
+                    customInput.required = false;
+                    select.required = true;
+                }
+            }
+            </script>
+            
+            <input type="number" step="0.01" name="price" placeholder="מחיר משוער בשקלים" style="margin-top: 10px;">
             <button type="submit">➕ הוסף ספק</button>
         </form>
+
+        <hr>
+
+        <h2>סינון ספקים לפי קטגוריה</h2>
+        <div style="text-align: center; margin: 20px 0;">
+            <a href="/suppliers" style="display: inline-block; margin: 0 10px; padding: 10px 20px; background: rgba(255,255,255,0.95); border-radius: 8px; text-decoration: none; color: #667eea; font-weight: bold; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">📋 הכל</a>
+            
+            {% for category, count in category_counts.items() %}
+            <a href="/suppliers?category={{ category }}" style="display: inline-block; margin: 0 10px; padding: 10px 20px; background: rgba(255,255,255,0.95); border-radius: 8px; text-decoration: none; color: #667eea; font-weight: bold; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+                {% if category == 'אולם' %}🏛️
+                {% elif category == 'צלם' %}📷
+                {% elif category == 'DJ' %}🎵
+                {% elif category == 'קייטרינג' %}🍽️
+                {% elif category == 'פרחים' %}💐
+                {% elif category == 'הסעות' %}🚗
+                {% elif category == 'אחר' %}📦
+                {% elif category == 'רב' %}👨‍⚖️
+                {% elif category == 'מעצב שיער' %}💇
+                {% elif category == 'איפור' %}💄
+                {% elif category == 'שמלה' %}👗
+                {% elif category == 'חליפה' %}🤵
+                {% else %}✨
+                {% endif %}
+                {{ category }} ({{ count }})
+            </a>
+            {% endfor %}
+        </div>
 
         <hr>
 
@@ -44,7 +124,9 @@
                     <th>טלפון</th>
                     <th>קטגוריה</th>
                     <th>מחיר</th>
-                    <th>פעולות</th>
+                    <th>דירוג</th>
+                    <th>עריכה</th>
+                    <th>מחיקה</th>
                 </tr>
             </thead>
             <tbody>
@@ -55,8 +137,43 @@
                     <td><span style="background: #667eea; color: white; padding: 4px 12px; border-radius: 12px; font-size: 0.85rem;">{{ s.category }}</span></td>
                     <td style="color: #667eea; font-weight: 700;">{{ s.price }} ₪</td>
                     <td>
+                        <form action="/suppliers/rate/{{ s.id }}" method="post" style="display: inline;">
+                            <input type="hidden" name="rating" value="1">
+                            <button type="submit" style="background: none; border: none; cursor: pointer; font-size: 1.3rem;">
+                                {% if s.rating >= 1 %}⭐{% else %}☆{% endif %}
+                            </button>
+                        </form>
+                        <form action="/suppliers/rate/{{ s.id }}" method="post" style="display: inline;">
+                            <input type="hidden" name="rating" value="2">
+                            <button type="submit" style="background: none; border: none; cursor: pointer; font-size: 1.3rem;">
+                                {% if s.rating >= 2 %}⭐{% else %}☆{% endif %}
+                            </button>
+                        </form>
+                        <form action="/suppliers/rate/{{ s.id }}" method="post" style="display: inline;">
+                            <input type="hidden" name="rating" value="3">
+                            <button type="submit" style="background: none; border: none; cursor: pointer; font-size: 1.3rem;">
+                                {% if s.rating >= 3 %}⭐{% else %}☆{% endif %}
+                            </button>
+                        </form>
+                        <form action="/suppliers/rate/{{ s.id }}" method="post" style="display: inline;">
+                            <input type="hidden" name="rating" value="4">
+                            <button type="submit" style="background: none; border: none; cursor: pointer; font-size: 1.3rem;">
+                                {% if s.rating >= 4 %}⭐{% else %}☆{% endif %}
+                            </button>
+                        </form>
+                        <form action="/suppliers/rate/{{ s.id }}" method="post" style="display: inline;">
+                            <input type="hidden" name="rating" value="5">
+                            <button type="submit" style="background: none; border: none; cursor: pointer; font-size: 1.3rem;">
+                                {% if s.rating >= 5 %}⭐{% else %}☆{% endif %}
+                            </button>
+                        </form>
+                    </td>
+                    <td>
+                        <a href="/suppliers/edit/{{ s.id }}" style="background: #667eea; padding: 8px 16px; border-radius: 8px; text-decoration: none; color: white; display: inline-block;">✏️ ערוך</a>
+                    </td>
+                    <td>
                         <form action="/suppliers/delete/{{ s.id }}" method="post" style="display: inline;">
-                            <button type="submit" style="background: #f093fb; border: none; padding: 6px 12px; border-radius: 8px; cursor: pointer; font-size: 1rem;">🗑️ מחק</button>
+                            <button type="submit" onclick="return confirm('האם אתה בטוח שברצונך למחוק את {{ s.name }}?')" style="background: #f093fb; border: none; padding: 8px 16px; border-radius: 8px; cursor: pointer; font-size: 1rem; color: white;">🗑️ מחק</button>
                         </form>
                     </td>
                 </tr>

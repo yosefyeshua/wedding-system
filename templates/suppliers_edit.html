@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="he">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>עריכת ספק</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <!-- Navigation Menu -->
+        <nav style="background: rgba(255,255,255,0.95); padding: 15px; border-radius: 12px; margin-bottom: 20px; text-align: center; box-shadow: 0 4px 15px rgba(0,0,0,0.1);">
+            <a href="/tasks" style="margin: 0 15px; font-size: 1.1rem; text-decoration: none; color: #667eea; transition: all 0.3s;">📋 משימות</a>
+            <span style="color: #ccc;">|</span>
+            <a href="/budget" style="margin: 0 15px; font-size: 1.1rem; text-decoration: none; color: #667eea; transition: all 0.3s;">💰 הוצאות</a>
+            <span style="color: #ccc;">|</span>
+            <a href="/suppliers" style="margin: 0 15px; font-size: 1.1rem; text-decoration: none; color: #667eea; font-weight: bold; transition: all 0.3s;">🏢 ספקים</a>
+            <span style="color: #ccc;">|</span>
+            <a href="/events" style="margin: 0 15px; font-size: 1.1rem; text-decoration: none; color: #667eea; transition: all 0.3s;">📅 אירועים</a>
+        </nav>
+
+        <h1>✏️ עריכת ספק</h1>
+
+        <form action="/suppliers/edit/{{ supplier.id }}" method="post">
+            <input type="text" name="name" value="{{ supplier.name }}" placeholder="שם הספק" required>
+            
+            <input type="tel" name="phone" value="{{ supplier.phone }}" placeholder="טלפון (אופציונלי)">
+            
+            <select name="category" id="categorySelect" onchange="toggleCustomCategory()">
+                <option value="">בחר קטגוריה</option>
+                <option value="אולם" {% if supplier.category == 'אולם' %}selected{% endif %}>אולם</option>
+                <option value="צלם" {% if supplier.category == 'צלם' %}selected{% endif %}>צלם</option>
+                <option value="DJ" {% if supplier.category == 'DJ' %}selected{% endif %}>DJ</option>
+                <option value="קייטרינג" {% if supplier.category == 'קייטרינג' %}selected{% endif %}>קייטרינג</option>
+                <option value="פרחים" {% if supplier.category == 'פרחים' %}selected{% endif %}>פרחים</option>
+                <option value="הסעות" {% if supplier.category == 'הסעות' %}selected{% endif %}>הסעות</option>
+                <option value="custom">➕ אחר (קטגוריה חדשה)</option>
+            </select>
+            
+            <input type="text" name="custom_category" id="customCategory" placeholder="הקלד קטגוריה חדשה" style="display: none; margin-top: 10px;">
+            
+            <input type="number" name="price" value="{{ supplier.price }}" placeholder="מחיר (₪)" step="0.01">
+            
+            <div style="display: flex; gap: 10px; margin-top: 10px;">
+                <button type="submit" style="flex: 1; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 15px; border: none; border-radius: 10px; font-size: 1.1rem; cursor: pointer; transition: all 0.3s;">💾 שמור שינויים</button>
+                <a href="/suppliers" style="flex: 1; background: #95a5a6; text-align: center; padding: 15px; border-radius: 10px; text-decoration: none; color: white; display: flex; align-items: center; justify-content: center; font-size: 1.1rem; transition: all 0.3s;">❌ ביטול</a>
+            </div>
+        </form>
+    </div>
+
+    <script>
+    function toggleCustomCategory() {
+        const select = document.getElementById('categorySelect');
+        const customInput = document.getElementById('customCategory');
+        
+        if (select.value === 'custom') {
+            customInput.style.display = 'block';
+            customInput.required = true;
+            select.removeAttribute('required');
+        } else {
+            customInput.style.display = 'none';
+            customInput.required = false;
+            select.required = true;
+        }
+    }
+    </script>
+</body>
+</html>

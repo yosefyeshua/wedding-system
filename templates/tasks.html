@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="he">
+<html lang="he" dir="rtl">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -10,6 +10,8 @@
     <div class="container">
         <!-- Navigation Menu -->
         <nav style="background: rgba(255,255,255,0.95); padding: 15px; border-radius: 12px; margin-bottom: 20px; text-align: center; box-shadow: 0 4px 15px rgba(0,0,0,0.1);">
+            <a href="/" style="margin: 0 15px; font-size: 1.1rem; text-decoration: none; color: #667eea; transition: all 0.3s;">🏠 דף הבית</a>
+            <span style="color: #ccc;">|</span>
             <a href="/tasks" style="margin: 0 15px; font-size: 1.1rem; text-decoration: none; color: #667eea; font-weight: bold; transition: all 0.3s;">📋 משימות</a>
             <span style="color: #ccc;">|</span>
             <a href="/budget" style="margin: 0 15px; font-size: 1.1rem; text-decoration: none; color: #667eea; transition: all 0.3s;">💰 הוצאות</a>
@@ -17,21 +19,31 @@
             <a href="/suppliers" style="margin: 0 15px; font-size: 1.1rem; text-decoration: none; color: #667eea; transition: all 0.3s;">🏢 ספקים</a>
             <span style="color: #ccc;">|</span>
             <a href="/events" style="margin: 0 15px; font-size: 1.1rem; text-decoration: none; color: #667eea; transition: all 0.3s;">📅 אירועים</a>
+            <span style="color: #ccc;">|</span>
+            <a href="/settings" style="margin: 0 15px; font-size: 1.1rem; text-decoration: none; color: #667eea; transition: all 0.3s;">⚙️ הגדרות</a>
+            <span style="color: #ccc;">|</span>
+            <a href="/logout" style="margin: 0 15px; font-size: 1.1rem; text-decoration: none; color: #e74c3c; transition: all 0.3s;">🚪 יציאה</a>
         </nav>
 
-        <h1>🎊 ניהול משימות</h1>
-        
-        <!-- Success Message -->
-        {% if request.args.get('message') == 'sent' %}
-        <div style="background: #4CAF50; color: white; padding: 15px; border-radius: 10px; margin-bottom: 20px; text-align: center;">
-            ✅ תזכורת נשלחה בהצלחה!
-        </div>
-        {% elif request.args.get('message') == 'error' %}
-        <div style="background: #f44336; color: white; padding: 15px; border-radius: 10px; margin-bottom: 20px; text-align: center;">
-            ❌ שגיאה בשליחת תזכורת. וודא שהזנת כתובת מייל תקינה.
+        <!-- Daily Tip -->
+        {% if daily_tip %}
+        <div class="daily-tip">
+            <div class="tip-header">💡 טיפ היום - {{ daily_tip.category }}</div>
+            <div class="tip-content">{{ daily_tip.tip }}</div>
         </div>
         {% endif %}
-        
+
+        <h1>🎊 ניהול משימות</h1>
+
+        <!-- Flash Messages -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ category }}">{{ message }}</div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+
         <h2>יצירת משימה חדשה</h2>
         <form action="/tasks/create" method="post">
             <input type="text" name="description" placeholder="תיאור משימה" required>
@@ -56,54 +68,54 @@
 
         <h2>📊 טבלת משימות</h2>
         {% if tasks %}
-        <table>
-            <thead>
-                <tr>
-                    <th>תיאור</th>
-                    <th>תאריך יעד</th>
-                    <th>אימייל</th>
-                    <th>סטטוס</th>
-                    <th>תזכורת</th>
-                    <th>מחיקה</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for task in tasks %}
-                <tr>
-                    <td><strong style="color: black !important;">{{ task.description }}</strong></td>
-                    <td>{{ task.due_date if task.due_date else '—' }}</td>
-                    <td>{{ task.email if task.email else '—' }}</td>
-                    <td>
-                        <form action="/tasks/status/{{ task.id }}" method="post" style="display: inline;">
-                            <select name="new_status" onchange="this.form.submit()" style="padding: 8px; border-radius: 8px; border: 1px solid #ddd; background: white;">
-                                <option value="חדש" {% if task.status == 'חדש' %}selected{% endif %}>🆕 חדש</option>
-                                <option value="בתהליך" {% if task.status == 'בתהליך' %}selected{% endif %}>⚙️ בתהליך</option>
-                                <option value="בוצע" {% if task.status == 'בוצע' %}selected{% endif %}>✅ בוצע</option>
-                            </select>
-                        </form>
-                    </td>
-                    <td>
-                        {% if task.email %}
-                        <form action="/tasks/remind/{{ task.id }}" method="post" style="display: inline;">
-                            <button type="submit" style="background: #4CAF50; border: none; padding: 8px 16px; border-radius: 8px; cursor: pointer; font-size: 1rem; color: white;">📧 שלח</button>
-                        </form>
-                        {% else %}
-                        <span style="color: #999;">—</span>
-                        {% endif %}
-                    </td>
-                    <td>
-                        <form action="/tasks/delete/{{ task.id }}" method="post" style="display: inline;">
-                            <button type="submit" style="background: #f093fb; border: none; padding: 8px 16px; border-radius: 8px; cursor: pointer; font-size: 1rem; color: white;">🗑️ מחק</button>
-                        </form>
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
+            <table>
+                <thead>
+                    <tr>
+                        <th>תיאור</th>
+                        <th>תאריך יעד</th>
+                        <th>אימייל</th>
+                        <th>סטטוס</th>
+                        <th>תזכורת</th>
+                        <th>מחיקה</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for task in tasks %}
+                    <tr>
+                        <td><strong style="color: black !important;">{{ task.description }}</strong></td>
+                        <td>{{ task.due_date if task.due_date else '—' }}</td>
+                        <td>{{ task.email if task.email else '—' }}</td>
+                        <td>
+                            <form action="/tasks/status/{{ task.id }}" method="post" style="display: inline;">
+                                <select name="new_status" onchange="this.form.submit()" style="padding: 8px; border-radius: 8px; border: 1px solid #ddd; background: white;">
+                                    <option value="חדש" {% if task.status == 'חדש' %}selected{% endif %}>🆕 חדש</option>
+                                    <option value="בתהליך" {% if task.status == 'בתהליך' %}selected{% endif %}>⚙️ בתהליך</option>
+                                    <option value="בוצע" {% if task.status == 'בוצע' %}selected{% endif %}>✅ בוצע</option>
+                                </select>
+                            </form>
+                        </td>
+                        <td>
+                            {% if task.email %}
+                                <form action="/tasks/remind/{{ task.id }}" method="post" style="display: inline;">
+                                    <button type="submit" style="background: #4CAF50; border: none; padding: 8px 16px; border-radius: 8px; cursor: pointer; font-size: 1rem; color: white;">📧 שלח</button>
+                                </form>
+                            {% else %}
+                                <span style="color: #999;">—</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <form action="/tasks/delete/{{ task.id }}" method="post" style="display: inline;">
+                                <button type="submit" style="background: #f093fb; border: none; padding: 8px 16px; border-radius: 8px; cursor: pointer; font-size: 1rem; color: white;">🗑️ מחק</button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
         {% else %}
-        <div class="empty-message">
-            <p>📭 אין משימות עדיין. הוסף משימה ראשונה!</p>
-        </div>
+            <div class="empty-message">
+                <p>📭 אין משימות עדיין. הוסף משימה ראשונה!</p>
+            </div>
         {% endif %}
     </div>
 </body>
