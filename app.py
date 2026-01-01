@@ -16,15 +16,14 @@ def get_db():
     
     if database_url:
         # Production - PostgreSQL
-        import psycopg2
-        import psycopg2.extras
+        import psycopg
+from psycopg.rows import dict_row
         
         # Fix for Render.com - change postgres:// to postgresql://
         if database_url.startswith('postgres://'):
             database_url = database_url.replace('postgres://', 'postgresql://', 1)
         
-        conn = psycopg2.connect(database_url)
-        conn.cursor_factory = psycopg2.extras.RealDictCursor
+        conn = psycopg.connect(database_url, row_factory=dict_row)
         return conn
     else:
         # Development - SQLite
