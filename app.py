@@ -1,5 +1,5 @@
 from flask import Flask, render_template, request, redirect, session, flash, url_for
-import sqlite3
+import os
 import bcrypt
 import secrets
 from datetime import datetime, timedelta
@@ -7,14 +7,59 @@ from functools import wraps
 import calendar
 
 app = Flask(__name__)
-app.secret_key = 'wedding-system-secret-key-2025'  # Change this in production
+app.secret_key = os.environ.get('SECRET_KEY', 'wedding-system-secret-key-2025')
+
+# ===== DATABASE CONNECTION =====
+def get_db():
+    """חיבור ל-PostgreSQL או SQLite (לפי סביבה)"""
+    database_url = os.environ.get('DATABASE_URL')
+    
+    if database_url:
+        # Production - PostgreSQL
+        import psycopg2
+        import psycopg2.extras
+        
+        # Fix for Render.com - change postgres:// to postgresql://
+        if database_url.startswith('postgres://'):
+            database_url = database_url.replace('postgres://', 'postgresql://', 1)
+        
+        conn = psycopg2.connect(database_url)
+        conn.cursor_factory = psycopg2.extras.RealDictCursor
+        return conn
+    else:
+        # Development - SQLite
+        import sqlite3
+        conn = sqlite3.connect('database.db')
+        conn.row_factory = sqlite3.Row
+        return conn
+
+def execute_query(query, params=None, fetch_one=False, fetch_all=False, commit=False):
+    """פונקציה עזר להרצת שאילתות"""
+    conn = get_db()
+    cursor = conn.cursor()
+    
+    try:
+        if params:
+            cursor.execute(query, params)
+        else:
+            cursor.execute(query)
+        
+        if commit:
+            conn.commit()
+            result = cursor.rowcount
+        elif fetch_one:
+            result = cursor.fetchone()
+        elif fetch_all:
+            result = cursor.fetchall()
+        else:
+            result = None
+            
+        return result
+    finally:
+        cursor.close()
+        conn.close()
 
 # ===== HELPER FUNCTIONS =====
-def get_db():
-    conn = sqlite3.connect('database.db')
-    conn.row_factory = sqlite3.Row
-    return conn
-
 def login_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
@@ -26,12 +71,8 @@ def login_required(f):
 
 def get_current_user():
     if 'user_id' in session:
-        conn = get_db()
-        c = conn.cursor()
-        c.execute('SELECT * FROM users WHERE id = ?', (session['user_id'],))
-        user = c.fetchone()
-        conn.close()
-        return user
+        query = 'SELECT * FROM users WHERE id = %s' if os.environ.get('DATABASE_URL') else 'SELECT * FROM users WHERE id = ?'
+        return execute_query(query, (session['user_id'],), fetch_one=True)
     return None
 
 def get_daily_tip():
@@ -41,11 +82,9 @@ def get_daily_tip():
     today = date.today()
     seed = int(today.strftime('%Y%m%d'))
     random.seed(seed)
-    conn = get_db()
-    c = conn.cursor()
-    c.execute('SELECT tip, category FROM daily_tips')
-    tips = c.fetchall()
-    conn.close()
+    
+    tips = execute_query('SELECT tip, category FROM daily_tips', fetch_all=True)
+    
     if tips:
         tip = random.choice(tips)
         return {'tip': tip['tip'], 'category': tip['category']}
@@ -53,84 +92,78 @@ def get_daily_tip():
 
 def get_dashboard_stats(user):
     """קבלת סטטיסטיקות לדשבורד"""
-    conn = get_db()
-    c = conn.cursor()
-    
-    # משתמש + שותף
-    user_ids = (user['id'], user['partner_id']) if user['partner_id'] else (user['id'],)
+    placeholder = '%s' if os.environ.get('DATABASE_URL') else '?'
     
     # ספירת משימות
     if user['partner_id']:
-        c.execute('SELECT COUNT(*) FROM tasks WHERE (user_id = ? OR user_id = ?) AND status = ?',
-                  (user['id'], user['partner_id'], 'חדש'))
-        pending_tasks = c.fetchone()[0]
+        pending_query = f'SELECT COUNT(*) as count FROM tasks WHERE (user_id = {placeholder} OR user_id = {placeholder}) AND status = {placeholder}'
+        pending_tasks = execute_query(pending_query, (user['id'], user['partner_id'], 'חדש'), fetch_one=True)['count']
         
-        c.execute('SELECT COUNT(*) FROM tasks WHERE (user_id = ? OR user_id = ?) AND status = ?',
-                  (user['id'], user['partner_id'], 'הושלם'))
-        completed_tasks = c.fetchone()[0]
+        completed_query = f'SELECT COUNT(*) as count FROM tasks WHERE (user_id = {placeholder} OR user_id = {placeholder}) AND status = {placeholder}'
+        completed_tasks = execute_query(completed_query, (user['id'], user['partner_id'], 'הושלם'), fetch_one=True)['count']
         
-        # אירועים קרובים (7 ימים הקרובים)
-        c.execute('''SELECT * FROM events 
-                     WHERE (user_id = ? OR user_id = ?) 
-                     AND event_date >= date('now') 
-                     AND event_date <= date('now', '+7 days')
-                     ORDER BY event_date ASC LIMIT 3''',
-                  (user['id'], user['partner_id']))
-        upcoming_events = c.fetchall()
+        # אירועים קרובים
+        events_query = f'''SELECT * FROM events 
+                          WHERE (user_id = {placeholder} OR user_id = {placeholder}) 
+                          AND event_date >= CURRENT_DATE 
+                          AND event_date <= CURRENT_DATE + INTERVAL '7 days'
+                          ORDER BY event_date ASC LIMIT 3''' if os.environ.get('DATABASE_URL') else \
+                       f'''SELECT * FROM events 
+                          WHERE (user_id = {placeholder} OR user_id = {placeholder}) 
+                          AND event_date >= date('now') 
+                          AND event_date <= date('now', '+7 days')
+                          ORDER BY event_date ASC LIMIT 3'''
+        upcoming_events = execute_query(events_query, (user['id'], user['partner_id']), fetch_all=True)
         
         # תקציב
-        c.execute('SELECT budget_limit FROM users WHERE id = ?', (user['id'],))
-        budget_limit = c.fetchone()[0] or 0
+        budget_query = f'SELECT budget_limit FROM users WHERE id = {placeholder}'
+        budget_limit = execute_query(budget_query, (user['id'],), fetch_one=True)['budget_limit'] or 0
         
-        c.execute('SELECT SUM(amount) FROM expenses WHERE user_id = ? OR user_id = ?',
-                  (user['id'], user['partner_id']))
-        total_spent = c.fetchone()[0] or 0
+        spent_query = f'SELECT SUM(amount) as total FROM expenses WHERE user_id = {placeholder} OR user_id = {placeholder}'
+        total_spent = execute_query(spent_query, (user['id'], user['partner_id']), fetch_one=True)['total'] or 0
         
         # ספקים
-        c.execute('SELECT COUNT(*) FROM suppliers WHERE user_id = ? OR user_id = ?',
-                  (user['id'], user['partner_id']))
-        total_suppliers = c.fetchone()[0]
-        
+        suppliers_query = f'SELECT COUNT(*) as count FROM suppliers WHERE user_id = {placeholder} OR user_id = {placeholder}'
+        total_suppliers = execute_query(suppliers_query, (user['id'], user['partner_id']), fetch_one=True)['count']
     else:
-        c.execute('SELECT COUNT(*) FROM tasks WHERE user_id = ? AND status = ?',
-                  (user['id'], 'חדש'))
-        pending_tasks = c.fetchone()[0]
+        pending_query = f'SELECT COUNT(*) as count FROM tasks WHERE user_id = {placeholder} AND status = {placeholder}'
+        pending_tasks = execute_query(pending_query, (user['id'], 'חדש'), fetch_one=True)['count']
         
-        c.execute('SELECT COUNT(*) FROM tasks WHERE user_id = ? AND status = ?',
-                  (user['id'], 'הושלם'))
-        completed_tasks = c.fetchone()[0]
+        completed_query = f'SELECT COUNT(*) as count FROM tasks WHERE user_id = {placeholder} AND status = {placeholder}'
+        completed_tasks = execute_query(completed_query, (user['id'], 'הושלם'), fetch_one=True)['count']
         
-        c.execute('''SELECT * FROM events 
-                     WHERE user_id = ? 
-                     AND event_date >= date('now') 
-                     AND event_date <= date('now', '+7 days')
-                     ORDER BY event_date ASC LIMIT 3''',
-                  (user['id'],))
-        upcoming_events = c.fetchall()
+        events_query = f'''SELECT * FROM events 
+                          WHERE user_id = {placeholder} 
+                          AND event_date >= CURRENT_DATE 
+                          AND event_date <= CURRENT_DATE + INTERVAL '7 days'
+                          ORDER BY event_date ASC LIMIT 3''' if os.environ.get('DATABASE_URL') else \
+                       f'''SELECT * FROM events 
+                          WHERE user_id = {placeholder} 
+                          AND event_date >= date('now') 
+                          AND event_date <= date('now', '+7 days')
+                          ORDER BY event_date ASC LIMIT 3'''
+        upcoming_events = execute_query(events_query, (user['id'],), fetch_all=True)
         
-        c.execute('SELECT budget_limit FROM users WHERE id = ?', (user['id'],))
-        budget_limit = c.fetchone()[0] or 0
+        budget_query = f'SELECT budget_limit FROM users WHERE id = {placeholder}'
+        budget_limit = execute_query(budget_query, (user['id'],), fetch_one=True)['budget_limit'] or 0
         
-        c.execute('SELECT SUM(amount) FROM expenses WHERE user_id = ?', (user['id'],))
-        total_spent = c.fetchone()[0] or 0
+        spent_query = f'SELECT SUM(amount) as total FROM expenses WHERE user_id = {placeholder}'
+        total_spent = execute_query(spent_query, (user['id'],), fetch_one=True)['total'] or 0
         
-        c.execute('SELECT COUNT(*) FROM suppliers WHERE user_id = ?', (user['id'],))
-        total_suppliers = c.fetchone()[0]
-    
-    conn.close()
+        suppliers_query = f'SELECT COUNT(*) as count FROM suppliers WHERE user_id = {placeholder}'
+        total_suppliers = execute_query(suppliers_query, (user['id'],), fetch_one=True)['count']
     
     # חישוב אחוזי תקציב
     budget_percentage = 0
     if budget_limit > 0:
         budget_percentage = min(int((total_spent / budget_limit) * 100), 100)
     
-    # האם חורג מהתקציב?
     is_over_budget = total_spent > budget_limit if budget_limit > 0 else False
     
     return {
         'pending_tasks': pending_tasks,
         'completed_tasks': completed_tasks,
-        'upcoming_events': upcoming_events,
+        'upcoming_events': upcoming_events or [],
         'budget_limit': budget_limit,
         'total_spent': total_spent,
         'budget_remaining': budget_limit - total_spent,
@@ -157,7 +190,8 @@ def send_email(to_email, subject, body):
         print(f"❌ שגיאה: {e}")
         return False
 
-# ===== AUTHENTICATION ROUTES =====
+# ===== שאר ה-ROUTES נשארים אותו דבר =====
+# (המשך הקוד בהודעה הבאה...)# ===== AUTHENTICATION ROUTES =====
 @app.route('/register', methods=['GET', 'POST'])
 def register():
     if request.method == 'POST':
@@ -174,21 +208,17 @@ def register():
             flash('הסיסמה חייבת להיות לפחות 6 תווים', 'error')
             return redirect(url_for('register'))
 
-        conn = get_db()
-        c = conn.cursor()
-        c.execute('SELECT id FROM users WHERE email = ?', (email,))
-        existing_user = c.fetchone()
+        placeholder = '%s' if os.environ.get('DATABASE_URL') else '?'
+        check_query = f'SELECT id FROM users WHERE email = {placeholder}'
+        existing_user = execute_query(check_query, (email,), fetch_one=True)
 
         if existing_user:
-            conn.close()
             flash('האימייל כבר רשום במערכת', 'error')
             return redirect(url_for('register'))
 
         password_hash = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt())
-        c.execute('INSERT INTO users (full_name, email, password_hash) VALUES (?, ?, ?)',
-                  (full_name, email, password_hash))
-        conn.commit()
-        conn.close()
+        insert_query = f'INSERT INTO users (full_name, email, password_hash) VALUES ({placeholder}, {placeholder}, {placeholder})'
+        execute_query(insert_query, (full_name, email, password_hash), commit=True)
 
         flash('הרשמה הושלמה בהצלחה! כעת תוכל להתחבר', 'success')
         return redirect(url_for('login'))
@@ -201,11 +231,9 @@ def login():
         email = request.form['email'].lower()
         password = request.form['password']
 
-        conn = get_db()
-        c = conn.cursor()
-        c.execute('SELECT * FROM users WHERE email = ?', (email,))
-        user = c.fetchone()
-        conn.close()
+        placeholder = '%s' if os.environ.get('DATABASE_URL') else '?'
+        query = f'SELECT * FROM users WHERE email = {placeholder}'
+        user = execute_query(query, (email,), fetch_one=True)
 
         if user and bcrypt.checkpw(password.encode('utf-8'), user['password_hash']):
             session['user_id'] = user['id']
@@ -228,27 +256,33 @@ def logout():
 def forgot_password():
     if request.method == 'POST':
         email = request.form['email'].lower()
-        conn = get_db()
-        c = conn.cursor()
-        c.execute('SELECT id, full_name FROM users WHERE email = ?', (email,))
-        user = c.fetchone()
+        placeholder = '%s' if os.environ.get('DATABASE_URL') else '?'
+        
+        query = f'SELECT id, full_name FROM users WHERE email = {placeholder}'
+        user = execute_query(query, (email,), fetch_one=True)
 
         if user:
             token = secrets.token_urlsafe(32)
             expires_at = datetime.now() + timedelta(hours=1)
-            c.execute('INSERT INTO reset_tokens (user_id, token, expires_at) VALUES (?, ?, ?)',
-                      (user['id'], token, expires_at))
-            conn.commit()
+            
+            insert_query = f'INSERT INTO reset_tokens (user_id, token, expires_at) VALUES ({placeholder}, {placeholder}, {placeholder})'
+            execute_query(insert_query, (user['id'], token, expires_at), commit=True)
 
-            reset_link = f"http://localhost:5001/reset-password/{token}"
+            reset_link = f"{request.url_root}reset-password/{token}"
             body = f"""
 שלום {user['full_name']},
+
 קיבלנו בקשה לאיפוס הסיסמה שלך.
+
 קוד איפוס: {token}
+
 או לחץ על הקישור:
 {reset_link}
+
 הקוד תקף לשעה אחת.
+
 אם לא ביקשת איפוס סיסמה, התעלם ממייל זה.
+
 בברכה,
 מערכת ניהול החתונה
             """
@@ -257,7 +291,6 @@ def forgot_password():
         else:
             flash(f'אם האימייל קיים במערכת, נשלח קוד איפוס', 'info')
 
-        conn.close()
         return redirect(url_for('reset_password_form'))
 
     return render_template('forgot_password.html')
@@ -281,24 +314,24 @@ def reset_password_submit():
         flash('הסיסמה חייבת להיות לפחות 6 תווים', 'error')
         return redirect(url_for('reset_password_form'))
 
-    conn = get_db()
-    c = conn.cursor()
-    c.execute('''SELECT user_id FROM reset_tokens 
-                 WHERE token = ? AND used = 0 AND expires_at > ?''',
-              (token, datetime.now()))
-    reset_token = c.fetchone()
+    placeholder = '%s' if os.environ.get('DATABASE_URL') else '?'
+    now_placeholder = 'NOW()' if os.environ.get('DATABASE_URL') else "datetime('now')"
+    
+    query = f'''SELECT user_id FROM reset_tokens 
+                WHERE token = {placeholder} AND used = 0 AND expires_at > {now_placeholder}'''
+    reset_token = execute_query(query, (token,), fetch_one=True)
 
     if not reset_token:
-        conn.close()
         flash('קוד איפוס לא תקין או פג תוקף', 'error')
         return redirect(url_for('reset_password_form'))
 
     password_hash = bcrypt.hashpw(new_password.encode('utf-8'), bcrypt.gensalt())
-    c.execute('UPDATE users SET password_hash = ? WHERE id = ?',
-              (password_hash, reset_token['user_id']))
-    c.execute('UPDATE reset_tokens SET used = 1 WHERE token = ?', (token,))
-    conn.commit()
-    conn.close()
+    
+    update_user = f'UPDATE users SET password_hash = {placeholder} WHERE id = {placeholder}'
+    execute_query(update_user, (password_hash, reset_token['user_id']), commit=True)
+    
+    update_token = f'UPDATE reset_tokens SET used = 1 WHERE token = {placeholder}'
+    execute_query(update_token, (token,), commit=True)
 
     flash('הסיסמה שונתה בהצלחה! כעת תוכל להתחבר', 'success')
     return redirect(url_for('login'))
@@ -307,58 +340,50 @@ def reset_password_submit():
 @login_required
 def settings():
     user = get_current_user()
+    placeholder = '%s' if os.environ.get('DATABASE_URL') else '?'
 
     if request.method == 'POST':
         action = request.form.get('action')
 
         if action == 'share':
             partner_email = request.form['partner_email'].lower()
-            conn = get_db()
-            c = conn.cursor()
-            c.execute('SELECT id, full_name FROM users WHERE email = ?', (partner_email,))
-            partner = c.fetchone()
+            
+            query = f'SELECT id, full_name FROM users WHERE email = {placeholder}'
+            partner = execute_query(query, (partner_email,), fetch_one=True)
 
             if not partner:
                 flash('לא נמצא משתמש עם האימייל הזה', 'error')
-                conn.close()
                 return redirect(url_for('settings'))
 
             if partner['id'] == user['id']:
                 flash('לא ניתן לשתף עם עצמך', 'error')
-                conn.close()
                 return redirect(url_for('settings'))
 
-            c.execute('UPDATE users SET partner_id = ?, partner_name = ? WHERE id = ?',
-                      (partner['id'], partner['full_name'], user['id']))
-            c.execute('UPDATE users SET partner_id = ?, partner_name = ? WHERE id = ?',
-                      (user['id'], user['full_name'], partner['id']))
-            conn.commit()
-            conn.close()
+            update1 = f'UPDATE users SET partner_id = {placeholder}, partner_name = {placeholder} WHERE id = {placeholder}'
+            execute_query(update1, (partner['id'], partner['full_name'], user['id']), commit=True)
+            
+            update2 = f'UPDATE users SET partner_id = {placeholder}, partner_name = {placeholder} WHERE id = {placeholder}'
+            execute_query(update2, (user['id'], user['full_name'], partner['id']), commit=True)
 
             flash(f'החשבון שותף עם {partner["full_name"]}', 'success')
             return redirect(url_for('settings'))
 
         elif action == 'unshare':
-            conn = get_db()
-            c = conn.cursor()
             if user['partner_id']:
-                c.execute('UPDATE users SET partner_id = NULL, partner_name = NULL WHERE id = ?',
-                          (user['partner_id'],))
-            c.execute('UPDATE users SET partner_id = NULL, partner_name = NULL WHERE id = ?',
-                      (user['id'],))
-            conn.commit()
-            conn.close()
+                update1 = f'UPDATE users SET partner_id = NULL, partner_name = NULL WHERE id = {placeholder}'
+                execute_query(update1, (user['partner_id'],), commit=True)
+            
+            update2 = f'UPDATE users SET partner_id = NULL, partner_name = NULL WHERE id = {placeholder}'
+            execute_query(update2, (user['id'],), commit=True)
 
             flash('השיתוף הוסר בהצלחה', 'success')
             return redirect(url_for('settings'))
         
         elif action == 'set_budget':
             budget_limit = float(request.form.get('budget_limit', 0))
-            conn = get_db()
-            c = conn.cursor()
-            c.execute('UPDATE users SET budget_limit = ? WHERE id = ?', (budget_limit, user['id']))
-            conn.commit()
-            conn.close()
+            
+            update = f'UPDATE users SET budget_limit = {placeholder} WHERE id = {placeholder}'
+            execute_query(update, (budget_limit, user['id']), commit=True)
             
             flash(f'תקציב כולל עודכן ל-₪{budget_limit:,.0f}', 'success')
             return redirect(url_for('settings'))
@@ -373,40 +398,34 @@ def index():
     stats = get_dashboard_stats(user)
     tip = get_daily_tip()
     
-    return render_template('index.html', stats=stats, daily_tip=tip, user=user)
-
-# ===== TASKS ROUTES =====
+    return render_template('index.html', stats=stats, daily_tip=tip, user=user)# ===== TASKS ROUTES =====
 @app.route('/tasks')
 @login_required
 def tasks():
     user = get_current_user()
     status_filter = request.args.get('status')
-    conn = get_db()
-    c = conn.cursor()
+    placeholder = '%s' if os.environ.get('DATABASE_URL') else '?'
 
     if user['partner_id']:
         if status_filter:
-            c.execute('SELECT * FROM tasks WHERE (user_id = ? OR user_id = ?) AND status = ? ORDER BY due_date ASC, id DESC',
-                      (user['id'], user['partner_id'], status_filter))
+            query = f'SELECT * FROM tasks WHERE (user_id = {placeholder} OR user_id = {placeholder}) AND status = {placeholder} ORDER BY due_date ASC, id DESC'
+            tasks_raw = execute_query(query, (user['id'], user['partner_id'], status_filter), fetch_all=True)
         else:
-            c.execute('SELECT * FROM tasks WHERE (user_id = ? OR user_id = ?) ORDER BY due_date ASC, id DESC',
-                      (user['id'], user['partner_id']))
+            query = f'SELECT * FROM tasks WHERE (user_id = {placeholder} OR user_id = {placeholder}) ORDER BY due_date ASC, id DESC'
+            tasks_raw = execute_query(query, (user['id'], user['partner_id']), fetch_all=True)
     else:
         if status_filter:
-            c.execute('SELECT * FROM tasks WHERE user_id = ? AND status = ? ORDER BY due_date ASC, id DESC',
-                      (user['id'], status_filter))
+            query = f'SELECT * FROM tasks WHERE user_id = {placeholder} AND status = {placeholder} ORDER BY due_date ASC, id DESC'
+            tasks_raw = execute_query(query, (user['id'], status_filter), fetch_all=True)
         else:
-            c.execute('SELECT * FROM tasks WHERE user_id = ? ORDER BY due_date ASC, id DESC',
-                      (user['id'],))
-
-    tasks_raw = c.fetchall()
-    conn.close()
+            query = f'SELECT * FROM tasks WHERE user_id = {placeholder} ORDER BY due_date ASC, id DESC'
+            tasks_raw = execute_query(query, (user['id'],), fetch_all=True)
 
     tasks = []
     for task in tasks_raw:
         task_dict = dict(task)
         if task['due_date']:
-            date_obj = datetime.strptime(task['due_date'], '%Y-%m-%d')
+            date_obj = datetime.strptime(str(task['due_date']), '%Y-%m-%d')
             task_dict['due_date'] = date_obj.strftime('%d/%m/%Y')
         tasks.append(task_dict)
 
@@ -419,13 +438,10 @@ def create_task():
     description = request.form['description']
     email = request.form.get('email', '')
     due_date = request.form.get('due_date', '')
+    placeholder = '%s' if os.environ.get('DATABASE_URL') else '?'
 
-    conn = get_db()
-    c = conn.cursor()
-    c.execute('INSERT INTO tasks (title, description, status, email, due_date, user_id) VALUES (?, ?, ?, ?, ?, ?)',
-              (description, description, 'חדש', email, due_date, session['user_id']))
-    conn.commit()
-    conn.close()
+    query = f'INSERT INTO tasks (title, description, status, email, due_date, user_id) VALUES ({placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder})'
+    execute_query(query, (description, description, 'חדש', email, due_date, session['user_id']), commit=True)
 
     return redirect('/tasks')
 
@@ -433,40 +449,40 @@ def create_task():
 @login_required
 def update_task_status(task_id):
     new_status = request.form['new_status']
-    conn = get_db()
-    c = conn.cursor()
-    c.execute('UPDATE tasks SET status = ? WHERE id = ?', (new_status, task_id))
-    conn.commit()
-    conn.close()
+    placeholder = '%s' if os.environ.get('DATABASE_URL') else '?'
+    
+    query = f'UPDATE tasks SET status = {placeholder} WHERE id = {placeholder}'
+    execute_query(query, (new_status, task_id), commit=True)
 
     return redirect('/tasks')
 
 @app.route('/tasks/delete/<int:task_id>', methods=['POST'])
 @login_required
 def delete_task(task_id):
-    conn = get_db()
-    c = conn.cursor()
-    c.execute('DELETE FROM tasks WHERE id = ?', (task_id,))
-    conn.commit()
-    conn.close()
+    placeholder = '%s' if os.environ.get('DATABASE_URL') else '?'
+    
+    query = f'DELETE FROM tasks WHERE id = {placeholder}'
+    execute_query(query, (task_id,), commit=True)
 
     return redirect('/tasks')
 
 @app.route('/tasks/remind/<int:task_id>', methods=['POST'])
 @login_required
 def remind_task(task_id):
-    conn = get_db()
-    c = conn.cursor()
-    c.execute('SELECT * FROM tasks WHERE id = ?', (task_id,))
-    task = c.fetchone()
-    conn.close()
+    placeholder = '%s' if os.environ.get('DATABASE_URL') else '?'
+    
+    query = f'SELECT * FROM tasks WHERE id = {placeholder}'
+    task = execute_query(query, (task_id,), fetch_one=True)
 
     if task and task['email']:
         body = f"""
 שלום,
+
 תזכורת למשימה בחתונה:
+
 📋 משימה: {task['description']}
 📊 סטטוס: {task['status']}
+
 בהצלחה!
 מערכת ניהול החתונה
         """
@@ -483,28 +499,24 @@ def remind_task(task_id):
 @login_required
 def budget():
     user = get_current_user()
-    conn = get_db()
-    c = conn.cursor()
+    placeholder = '%s' if os.environ.get('DATABASE_URL') else '?'
 
-    # קבלת תקציב כולל
-    c.execute('SELECT budget_limit FROM users WHERE id = ?', (user['id'],))
-    budget_limit = c.fetchone()[0] or 0
+    budget_query = f'SELECT budget_limit FROM users WHERE id = {placeholder}'
+    budget_limit = execute_query(budget_query, (user['id'],), fetch_one=True)['budget_limit'] or 0
 
     if user['partner_id']:
-        c.execute('SELECT * FROM expenses WHERE user_id = ? OR user_id = ? ORDER BY created_at DESC',
-                  (user['id'], user['partner_id']))
-        expenses = c.fetchall()
-        c.execute('SELECT SUM(amount) FROM expenses WHERE user_id = ? OR user_id = ?',
-                  (user['id'], user['partner_id']))
+        expenses_query = f'SELECT * FROM expenses WHERE user_id = {placeholder} OR user_id = {placeholder} ORDER BY created_at DESC'
+        expenses = execute_query(expenses_query, (user['id'], user['partner_id']), fetch_all=True)
+        
+        total_query = f'SELECT SUM(amount) as total FROM expenses WHERE user_id = {placeholder} OR user_id = {placeholder}'
+        total = execute_query(total_query, (user['id'], user['partner_id']), fetch_one=True)['total'] or 0
     else:
-        c.execute('SELECT * FROM expenses WHERE user_id = ? ORDER BY created_at DESC', (user['id'],))
-        expenses = c.fetchall()
-        c.execute('SELECT SUM(amount) FROM expenses WHERE user_id = ?', (user['id'],))
+        expenses_query = f'SELECT * FROM expenses WHERE user_id = {placeholder} ORDER BY created_at DESC'
+        expenses = execute_query(expenses_query, (user['id'],), fetch_all=True)
+        
+        total_query = f'SELECT SUM(amount) as total FROM expenses WHERE user_id = {placeholder}'
+        total = execute_query(total_query, (user['id'],), fetch_one=True)['total'] or 0
 
-    total = c.fetchone()[0] or 0
-    conn.close()
-
-    # חישוב אחוזים וסטטוס
     budget_percentage = 0
     remaining = budget_limit - total
     is_over_budget = False
@@ -528,25 +540,21 @@ def budget():
 def add_expense():
     description = request.form['description']
     amount = float(request.form['amount'])
+    placeholder = '%s' if os.environ.get('DATABASE_URL') else '?'
 
-    conn = get_db()
-    c = conn.cursor()
-    c.execute('INSERT INTO expenses (description, amount, user_id) VALUES (?, ?, ?)',
-              (description, amount, session['user_id']))
-    conn.commit()
+    insert_query = f'INSERT INTO expenses (description, amount, user_id) VALUES ({placeholder}, {placeholder}, {placeholder})'
+    execute_query(insert_query, (description, amount, session['user_id']), commit=True)
     
-    # בדיקה אם חרגנו מהתקציב
     user = get_current_user()
+    
     if user['partner_id']:
-        c.execute('SELECT SUM(amount) FROM expenses WHERE user_id = ? OR user_id = ?',
-                  (user['id'], user['partner_id']))
+        total_query = f'SELECT SUM(amount) as total FROM expenses WHERE user_id = {placeholder} OR user_id = {placeholder}'
+        total_spent = execute_query(total_query, (user['id'], user['partner_id']), fetch_one=True)['total'] or 0
     else:
-        c.execute('SELECT SUM(amount) FROM expenses WHERE user_id = ?', (user['id'],))
+        total_query = f'SELECT SUM(amount) as total FROM expenses WHERE user_id = {placeholder}'
+        total_spent = execute_query(total_query, (user['id'],), fetch_one=True)['total'] or 0
     
-    total_spent = c.fetchone()[0] or 0
     budget_limit = user['budget_limit'] or 0
-    
-    conn.close()
     
     if budget_limit > 0 and total_spent > budget_limit:
         flash(f'⚠️ שים לב! חרגת מהתקציב ב-₪{total_spent - budget_limit:,.0f}', 'warning')
@@ -561,36 +569,36 @@ def add_expense():
 def suppliers():
     user = get_current_user()
     category_filter = request.args.get('category')
-    conn = get_db()
-    c = conn.cursor()
+    placeholder = '%s' if os.environ.get('DATABASE_URL') else '?'
 
     if user['partner_id']:
         if category_filter:
-            c.execute('SELECT * FROM suppliers WHERE (user_id = ? OR user_id = ?) AND category = ?',
-                      (user['id'], user['partner_id'], category_filter))
+            query = f'SELECT * FROM suppliers WHERE (user_id = {placeholder} OR user_id = {placeholder}) AND category = {placeholder}'
+            suppliers = execute_query(query, (user['id'], user['partner_id'], category_filter), fetch_all=True)
         else:
-            c.execute('SELECT * FROM suppliers WHERE user_id = ? OR user_id = ?',
-                      (user['id'], user['partner_id']))
-        suppliers = c.fetchall()
-        c.execute('SELECT SUM(price) FROM suppliers WHERE user_id = ? OR user_id = ?',
-                  (user['id'], user['partner_id']))
-        total = c.fetchone()[0] or 0
-        c.execute('SELECT category, COUNT(*) as count FROM suppliers WHERE user_id = ? OR user_id = ? GROUP BY category',
-                  (user['id'], user['partner_id']))
+            query = f'SELECT * FROM suppliers WHERE user_id = {placeholder} OR user_id = {placeholder}'
+            suppliers = execute_query(query, (user['id'], user['partner_id']), fetch_all=True)
+        
+        total_query = f'SELECT SUM(price) as total FROM suppliers WHERE user_id = {placeholder} OR user_id = {placeholder}'
+        total = execute_query(total_query, (user['id'], user['partner_id']), fetch_one=True)['total'] or 0
+        
+        category_query = f'SELECT category, COUNT(*) as count FROM suppliers WHERE user_id = {placeholder} OR user_id = {placeholder} GROUP BY category'
+        categories = execute_query(category_query, (user['id'], user['partner_id']), fetch_all=True)
     else:
         if category_filter:
-            c.execute('SELECT * FROM suppliers WHERE user_id = ? AND category = ?',
-                      (user['id'], category_filter))
+            query = f'SELECT * FROM suppliers WHERE user_id = {placeholder} AND category = {placeholder}'
+            suppliers = execute_query(query, (user['id'], category_filter), fetch_all=True)
         else:
-            c.execute('SELECT * FROM suppliers WHERE user_id = ?', (user['id'],))
-        suppliers = c.fetchall()
-        c.execute('SELECT SUM(price) FROM suppliers WHERE user_id = ?', (user['id'],))
-        total = c.fetchone()[0] or 0
-        c.execute('SELECT category, COUNT(*) as count FROM suppliers WHERE user_id = ? GROUP BY category',
-                  (user['id'],))
+            query = f'SELECT * FROM suppliers WHERE user_id = {placeholder}'
+            suppliers = execute_query(query, (user['id'],), fetch_all=True)
+        
+        total_query = f'SELECT SUM(price) as total FROM suppliers WHERE user_id = {placeholder}'
+        total = execute_query(total_query, (user['id'],), fetch_one=True)['total'] or 0
+        
+        category_query = f'SELECT category, COUNT(*) as count FROM suppliers WHERE user_id = {placeholder} GROUP BY category'
+        categories = execute_query(category_query, (user['id'],), fetch_all=True)
 
-    category_counts = {row['category']: row['count'] for row in c.fetchall()}
-    conn.close()
+    category_counts = {row['category']: row['count'] for row in categories}
 
     tip = get_daily_tip()
     return render_template('suppliers.html', suppliers=suppliers, total=total,
@@ -606,21 +614,17 @@ def add_supplier():
     else:
         category = request.form['category']
     price = float(request.form.get('price', 0))
+    placeholder = '%s' if os.environ.get('DATABASE_URL') else '?'
 
-    conn = get_db()
-    c = conn.cursor()
-    c.execute('INSERT INTO suppliers (name, phone, category, price, user_id) VALUES (?, ?, ?, ?, ?)',
-              (name, phone, category, price, session['user_id']))
-    conn.commit()
-    conn.close()
+    query = f'INSERT INTO suppliers (name, phone, category, price, user_id) VALUES ({placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder})'
+    execute_query(query, (name, phone, category, price, session['user_id']), commit=True)
 
     return redirect('/suppliers')
 
 @app.route('/suppliers/edit/<int:supplier_id>', methods=['GET', 'POST'])
 @login_required
 def edit_supplier(supplier_id):
-    conn = get_db()
-    c = conn.cursor()
+    placeholder = '%s' if os.environ.get('DATABASE_URL') else '?'
 
     if request.method == 'POST':
         name = request.form['name']
@@ -631,25 +635,23 @@ def edit_supplier(supplier_id):
             category = request.form['category']
         price = float(request.form.get('price', 0))
 
-        c.execute('UPDATE suppliers SET name = ?, phone = ?, category = ?, price = ? WHERE id = ?',
-                  (name, phone, category, price, supplier_id))
-        conn.commit()
-        conn.close()
+        query = f'UPDATE suppliers SET name = {placeholder}, phone = {placeholder}, category = {placeholder}, price = {placeholder} WHERE id = {placeholder}'
+        execute_query(query, (name, phone, category, price, supplier_id), commit=True)
+        
         return redirect('/suppliers')
     else:
-        c.execute('SELECT * FROM suppliers WHERE id = ?', (supplier_id,))
-        supplier = c.fetchone()
-        conn.close()
+        query = f'SELECT * FROM suppliers WHERE id = {placeholder}'
+        supplier = execute_query(query, (supplier_id,), fetch_one=True)
+        
         return render_template('suppliers_edit.html', supplier=supplier)
 
 @app.route('/suppliers/delete/<int:supplier_id>', methods=['POST'])
 @login_required
 def delete_supplier(supplier_id):
-    conn = get_db()
-    c = conn.cursor()
-    c.execute('DELETE FROM suppliers WHERE id = ?', (supplier_id,))
-    conn.commit()
-    conn.close()
+    placeholder = '%s' if os.environ.get('DATABASE_URL') else '?'
+    
+    query = f'DELETE FROM suppliers WHERE id = {placeholder}'
+    execute_query(query, (supplier_id,), commit=True)
 
     return redirect('/suppliers')
 
@@ -657,49 +659,39 @@ def delete_supplier(supplier_id):
 @login_required
 def rate_supplier(supplier_id):
     rating = int(request.form.get('rating', 0))
-    conn = get_db()
-    c = conn.cursor()
-    c.execute('UPDATE suppliers SET rating = ? WHERE id = ?', (rating, supplier_id))
-    conn.commit()
-    conn.close()
+    placeholder = '%s' if os.environ.get('DATABASE_URL') else '?'
+    
+    query = f'UPDATE suppliers SET rating = {placeholder} WHERE id = {placeholder}'
+    execute_query(query, (rating, supplier_id), commit=True)
 
-    return redirect('/suppliers')
-
-# ===== EVENTS ROUTES =====
+    return redirect('/suppliers')# ===== EVENTS ROUTES =====
 @app.route('/events')
 @login_required
 def events():
     user = get_current_user()
+    placeholder = '%s' if os.environ.get('DATABASE_URL') else '?'
     
-    # קבלת פרמטרים לתצוגה
-    view_type = request.args.get('view', 'month')  # month או week
+    view_type = request.args.get('view', 'month')
     year = int(request.args.get('year', datetime.now().year))
     month = int(request.args.get('month', datetime.now().month))
-    
-    conn = get_db()
-    c = conn.cursor()
 
     if user['partner_id']:
-        c.execute('SELECT * FROM events WHERE user_id = ? OR user_id = ? ORDER BY event_date ASC',
-                  (user['id'], user['partner_id']))
+        query = f'SELECT * FROM events WHERE user_id = {placeholder} OR user_id = {placeholder} ORDER BY event_date ASC'
+        events_raw = execute_query(query, (user['id'], user['partner_id']), fetch_all=True)
     else:
-        c.execute('SELECT * FROM events WHERE user_id = ? ORDER BY event_date ASC', (user['id'],))
+        query = f'SELECT * FROM events WHERE user_id = {placeholder} ORDER BY event_date ASC'
+        events_raw = execute_query(query, (user['id'],), fetch_all=True)
 
-    events_raw = c.fetchall()
-    conn.close()
-
-    # Format events
     events = []
     for event in events_raw:
         event_dict = dict(event)
-        date_obj = datetime.strptime(event['event_date'], '%Y-%m-%d')
+        date_obj = datetime.strptime(str(event['event_date']), '%Y-%m-%d')
         event_dict['event_date'] = date_obj.strftime('%d/%m/%Y')
-        event_dict['event_date_raw'] = event['event_date']
+        event_dict['event_date_raw'] = str(event['event_date'])
         if event['event_time']:
-            event_dict['event_time'] = event['event_time'][:5]
+            event_dict['event_time'] = str(event['event_time'])[:5]
         events.append(event_dict)
 
-    # Calendar generation
     month_names = {
         1: 'ינואר', 2: 'פברואר', 3: 'מרץ', 4: 'אפריל',
         5: 'מאי', 6: 'יוני', 7: 'יולי', 8: 'אוגוסט',
@@ -707,27 +699,23 @@ def events():
     }
     
     day_names = ['ראשון', 'שני', 'שלישי', 'רביעי', 'חמישי', 'שישי', 'שבת']
-    
     month_name = month_names[month]
     
-    # יצירת לוח שנה
     cal = calendar.monthcalendar(year, month)
     calendar_days = []
     event_dates = {}
     
-    # מיפוי אירועים לפי תאריך
     for event in events_raw:
-        event_date = datetime.strptime(event['event_date'], '%Y-%m-%d')
+        event_date = datetime.strptime(str(event['event_date']), '%Y-%m-%d')
         if event_date.year == year and event_date.month == month:
             day = event_date.day
             if day not in event_dates:
                 event_dates[day] = []
             event_dates[day].append({
                 'title': event['title'],
-                'time': event['event_time'][:5] if event['event_time'] else None
+                'time': str(event['event_time'])[:5] if event['event_time'] else None
             })
     
-    # בניית לוח החודש
     today = datetime.now()
     for week in cal:
         week_days = []
@@ -746,29 +734,26 @@ def events():
                 })
         calendar_days.append(week_days)
     
-    # חישוב חודש קודם ואחרי
     prev_month = month - 1 if month > 1 else 12
     prev_year = year if month > 1 else year - 1
     next_month = month + 1 if month < 12 else 1
     next_year = year if month < 12 else year + 1
     
-    # תצוגת שבוע
     week_dates = []
     if view_type == 'week':
-        # מצא את השבוע הנוכחי
         today = datetime.now()
-        start_of_week = today - timedelta(days=today.weekday())  # יום ראשון
+        start_of_week = today - timedelta(days=today.weekday())
         
         for i in range(7):
             day_date = start_of_week + timedelta(days=i)
             day_events = []
             
             for event in events_raw:
-                event_date = datetime.strptime(event['event_date'], '%Y-%m-%d').date()
+                event_date = datetime.strptime(str(event['event_date']), '%Y-%m-%d').date()
                 if event_date == day_date.date():
                     day_events.append({
                         'title': event['title'],
-                        'time': event['event_time'][:5] if event['event_time'] else None,
+                        'time': str(event['event_time'])[:5] if event['event_time'] else None,
                         'description': event['description']
                     })
             
@@ -802,32 +787,28 @@ def add_event():
     event_date = request.form['event_date']
     event_time = request.form.get('event_time', '')
     description = request.form.get('description', '')
+    placeholder = '%s' if os.environ.get('DATABASE_URL') else '?'
 
-    conn = get_db()
-    c = conn.cursor()
-    c.execute('INSERT INTO events (title, event_date, event_time, description, user_id) VALUES (?, ?, ?, ?, ?)',
-              (title, event_date, event_time, description, session['user_id']))
-    conn.commit()
-    conn.close()
+    query = f'INSERT INTO events (title, event_date, event_time, description, user_id) VALUES ({placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder})'
+    execute_query(query, (title, event_date, event_time, description, session['user_id']), commit=True)
 
     return redirect('/events')
 
 @app.route('/events/delete/<int:event_id>', methods=['POST'])
 @login_required
 def delete_event(event_id):
-    conn = get_db()
-    c = conn.cursor()
-    c.execute('DELETE FROM events WHERE id = ?', (event_id,))
-    conn.commit()
-    conn.close()
+    placeholder = '%s' if os.environ.get('DATABASE_URL') else '?'
+    
+    query = f'DELETE FROM events WHERE id = {placeholder}'
+    execute_query(query, (event_id,), commit=True)
 
     return redirect('/events')
+
 # ===== ABOUT PAGE =====
 @app.route('/about')
 def about():
     """דף אודות המערכת"""
     
-    # מידע על המערכת
     system_info = {
         'name': 'מערכת ניהול חתונה',
         'version': '0.01.55',
@@ -835,7 +816,6 @@ def about():
         'description': 'תכנון חתונה לא חייב להיות מסובך! מערכת ניהול החתונה שלנו כאן כדי לעזור לכם להפוך את התהליך לפשוט, מאורגן ומהנה.'
     }
     
-    # הצוות המפתח
     team_members = [
         {
             'name': 'רועי שם טוב',
@@ -867,45 +847,19 @@ def about():
         }
     ]
     
-    # תכונות עיקריות
     features = [
-        {
-            'icon': '📋',
-            'title': 'ניהול משימות',
-            'description': 'עקוב אחרי כל המשימות עם סטטוסים, תזכורות ותאריכי יעד'
-        },
-        {
-            'icon': '💰',
-            'title': 'ניהול תקציב חכם',
-            'description': 'שלוט בהוצאות עם תקציב כולל, התראות חריגה ומעקב בזמן אמת'
-        },
-        {
-            'icon': '🏢',
-            'title': 'ניהול ספקים',
-            'description': 'ארגן את כל הספקים שלך עם דירוגים, מחירים וקטגוריות'
-        },
-        {
-            'icon': '📅',
-            'title': 'לוח שנה אינטראקטיבי',
-            'description': 'תצוגות חודש ושבוע עם כל האירועים והפגישות החשובים'
-        },
-        {
-            'icon': '🤝',
-            'title': 'שיתוף עם בן/בת זוג',
-            'description': 'עבדו ביחד על התכנון עם גישה משותפת לכל המידע'
-        },
-        {
-            'icon': '🏠',
-            'title': 'דשבורד מקיף',
-            'description': 'קבל תמונת מצב מלאה במבט אחד עם סטטיסטיקות וטיפים'
-        }
+        {'icon': '📋', 'title': 'ניהול משימות', 'description': 'עקוב אחרי כל המשימות עם סטטוסים, תזכורות ותאריכי יעד'},
+        {'icon': '💰', 'title': 'ניהול תקציב חכם', 'description': 'שלוט בהוצאות עם תקציב כולל, התראות חריגה ומעקב בזמן אמת'},
+        {'icon': '🏢', 'title': 'ניהול ספקים', 'description': 'ארגן את כל הספקים שלך עם דירוגים, מחירים וקטגוריות'},
+        {'icon': '📅', 'title': 'לוח שנה אינטראקטיבי', 'description': 'תצוגות חודש ושבוע עם כל האירועים והפגישות החשובים'},
+        {'icon': '🤝', 'title': 'שיתוף עם בן/בת זוג', 'description': 'עבדו ביחד על התכנון עם גישה משותפת לכל המידע'},
+        {'icon': '🏠', 'title': 'דשבורד מקיף', 'description': 'קבל תמונת מצב מלאה במבט אחד עם סטטיסטיקות וטיפים'}
     ]
     
-    # טכנולוגיות
     technologies = [
         {'name': 'Python 3.9', 'icon': '🐍'},
         {'name': 'Flask', 'icon': '⚡'},
-        {'name': 'SQLite', 'icon': '🗄️'},
+        {'name': 'PostgreSQL', 'icon': '🐘'},
         {'name': 'HTML/CSS', 'icon': '🎨'},
         {'name': 'Flask-Login', 'icon': '🔐'},
         {'name': 'Jinja2', 'icon': '📄'}
@@ -916,5 +870,7 @@ def about():
                          team_members=team_members,
                          features=features,
                          technologies=technologies)
+
 if __name__ == '__main__':
-    app.run(debug=True, port=5001)
+    port = int(os.environ.get('PORT', 5001))
+    app.run(host='0.0.0.0', port=port, debug=False)
