@@ -51,7 +51,7 @@
                 </div>
                 <div style="display: flex; justify-content: space-between; padding: 12px; background: #f8f9fa; border-radius: 8px;">
                     <span style="color: #666;">תאריך הצטרפות:</span>
-                    <strong>{{ user.created_at[:10] }}</strong>
+                    <strong>{{ user.created_at.strftime('%Y-%m-%d') if user.created_at else 'N/A' }}</strong>
                 </div>
             </div>
         </div>
