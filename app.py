@@ -12,10 +12,6 @@ app = Flask(__name__)
 app.secret_key = os.environ.get('SECRET_KEY', 'wedding-system-secret-key-2025')
 
 # ===== DATABASE CONNECTION =====
-def get_db():
-    """חיבור ל-PostgreSQL או SQLite (לפי סביבה)"""
-    database_url = os.environ.get('DATABASE_URL')
-    
     def get_db():
     """חיבור ל-PostgreSQL או SQLite (לפי סביבה)"""
     database_url = os.environ.get('DATABASE_URL')
