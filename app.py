@@ -5,7 +5,9 @@ import secrets
 from datetime import datetime, timedelta
 from functools import wraps
 import calendar
-
+import psycopg
+from psycopg.rows import dict_row
+import sqlite3
 app = Flask(__name__)
 app.secret_key = os.environ.get('SECRET_KEY', 'wedding-system-secret-key-2025')
 
@@ -14,11 +16,12 @@ def get_db():
     """חיבור ל-PostgreSQL או SQLite (לפי סביבה)"""
     database_url = os.environ.get('DATABASE_URL')
     
+    def get_db():
+    """חיבור ל-PostgreSQL או SQLite (לפי סביבה)"""
+    database_url = os.environ.get('DATABASE_URL')
+    
     if database_url:
         # Production - PostgreSQL
-        import psycopg
-from psycopg.rows import dict_row
-        
         # Fix for Render.com - change postgres:// to postgresql://
         if database_url.startswith('postgres://'):
             database_url = database_url.replace('postgres://', 'postgresql://', 1)
@@ -27,7 +30,6 @@ from psycopg.rows import dict_row
         return conn
     else:
         # Development - SQLite
-        import sqlite3
         conn = sqlite3.connect('database.db')
         conn.row_factory = sqlite3.Row
         return conn
