@@ -89,6 +89,19 @@ def get_daily_tip():
 
 def get_dashboard_stats(user):
     """קבלת סטטיסטיקות לדשבורד"""
+    if not user:
+        return {
+            'pending_tasks': 0,
+            'completed_tasks': 0,
+            'upcoming_events': [],
+            'budget_limit': 0,
+            'total_spent': 0,
+            'budget_remaining': 0,
+            'budget_percentage': 0,
+            'is_over_budget': False,
+            'total_suppliers': 0
+        }
+    
     placeholder = '%s' if os.environ.get('DATABASE_URL') else '?'
     
     # ספירת משימות
