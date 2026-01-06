@@ -200,8 +200,7 @@ def send_email(to_email, subject, body):
         print(f"❌ שגיאה: {e}")
         return False
 
-# ===== שאר ה-ROUTES נשארים אותו דבר =====
-# (המשך הקוד בהודעה הבאה...)# ===== AUTHENTICATION ROUTES =====
+# ===== AUTHENTICATION ROUTES =====
 @app.route('/register', methods=['GET', 'POST'])
 def register():
     if request.method == 'POST':
@@ -408,7 +407,9 @@ def index():
     stats = get_dashboard_stats(user)
     tip = get_daily_tip()
     
-    return render_template('index.html', stats=stats, daily_tip=tip, user=user)# ===== TASKS ROUTES =====
+    return render_template('index.html', stats=stats, daily_tip=tip, user=user)
+
+# ===== TASKS ROUTES =====
 @app.route('/tasks')
 @login_required
 def tasks():
@@ -449,10 +450,15 @@ def create_task():
     email = request.form.get('email', '')
     due_date = request.form.get('due_date', '')
     placeholder = '%s' if os.environ.get('DATABASE_URL') else '?'
+    
+    # תיקון Bug #1: אם אין תאריך, שלח None במקום string ריק
+    if not due_date or due_date.strip() == '':
+        due_date = None
 
     query = f'INSERT INTO tasks (title, description, status, email, due_date, user_id) VALUES ({placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder})'
     execute_query(query, (description, description, 'חדש', email, due_date, session['user_id']), commit=True)
-
+    
+    flash('משימה נוספה בהצלחה!', 'success')
     return redirect('/tasks')
 
 @app.route('/tasks/status/<int:task_id>', methods=['POST'])
@@ -623,12 +629,23 @@ def add_supplier():
         category = request.form.get('custom_category', 'אחר')
     else:
         category = request.form['category']
-    price = float(request.form.get('price', 0))
+    
+    # תיקון Bug #2: טיפול במחיר ריק או לא תקין
+    price_str = request.form.get('price', '0')
+    if not price_str or price_str.strip() == '':
+        price = 0
+    else:
+        try:
+            price = float(price_str)
+        except ValueError:
+            price = 0
+    
     placeholder = '%s' if os.environ.get('DATABASE_URL') else '?'
 
     query = f'INSERT INTO suppliers (name, phone, category, price, user_id) VALUES ({placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder})'
     execute_query(query, (name, phone, category, price, session['user_id']), commit=True)
-
+    
+    flash('ספק נוסף בהצלחה!', 'success')
     return redirect('/suppliers')
 
 @app.route('/suppliers/edit/<int:supplier_id>', methods=['GET', 'POST'])
@@ -674,7 +691,9 @@ def rate_supplier(supplier_id):
     query = f'UPDATE suppliers SET rating = {placeholder} WHERE id = {placeholder}'
     execute_query(query, (rating, supplier_id), commit=True)
 
-    return redirect('/suppliers')# ===== EVENTS ROUTES =====
+    return redirect('/suppliers')
+
+# ===== EVENTS ROUTES =====
 @app.route('/events')
 @login_required
 def events():
@@ -798,10 +817,15 @@ def add_event():
     event_time = request.form.get('event_time', '')
     description = request.form.get('description', '')
     placeholder = '%s' if os.environ.get('DATABASE_URL') else '?'
+    
+    # תיקון Bug #3: אם אין שעה, שלח None במקום string ריק
+    if not event_time or event_time.strip() == '':
+        event_time = None
 
     query = f'INSERT INTO events (title, event_date, event_time, description, user_id) VALUES ({placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder})'
     execute_query(query, (title, event_date, event_time, description, session['user_id']), commit=True)
-
+    
+    flash('אירוע נוסף בהצלחה!', 'success')
     return redirect('/events')
 
 @app.route('/events/delete/<int:event_id>', methods=['POST'])
@@ -821,8 +845,8 @@ def about():
     
     system_info = {
         'name': 'מערכת ניהול חתונה',
-        'version': '0.01.55',
-        'release_date': 'דצמבר 2025',
+        'version': '0.01.56',
+        'release_date': 'ינואר 2026',
         'description': 'תכנון חתונה לא חייב להיות מסובך! מערכת ניהול החתונה שלנו כאן כדי לעזור לכם להפוך את התהליך לפשוט, מאורגן ומהנה.'
     }
     
@@ -867,7 +891,7 @@ def about():
     ]
     
     technologies = [
-        {'name': 'Python 3.9', 'icon': '🐍'},
+        {'name': 'Python 3.13', 'icon': '🐍'},
         {'name': 'Flask', 'icon': '⚡'},
         {'name': 'PostgreSQL', 'icon': '🐘'},
         {'name': 'HTML/CSS', 'icon': '🎨'},
