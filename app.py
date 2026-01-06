@@ -821,6 +821,21 @@ def add_event():
     # תיקון Bug #3: אם אין שעה, שלח None במקום string ריק
     if not event_time or event_time.strip() == '':
         event_time = None
+    
+    # תיקון Bug #4: וידוא שהשעה בפורמט נכון (HH:MM)
+    if event_time:
+        try:
+            # וידוא פורמט HH:MM
+            time_parts = event_time.split(':')
+            if len(time_parts) == 2:
+                hours = int(time_parts[0])
+                minutes = int(time_parts[1])
+                if hours < 0 or hours > 23 or minutes < 0 or minutes > 59:
+                    event_time = None
+            else:
+                event_time = None
+        except:
+            event_time = None
 
     query = f'INSERT INTO events (title, event_date, event_time, description, user_id) VALUES ({placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder})'
     execute_query(query, (title, event_date, event_time, description, session['user_id']), commit=True)
@@ -845,7 +860,7 @@ def about():
     
     system_info = {
         'name': 'מערכת ניהול חתונה',
-        'version': '0.01.56',
+        'version': '0.01.57',
         'release_date': 'ינואר 2026',
         'description': 'תכנון חתונה לא חייב להיות מסובך! מערכת ניהול החתונה שלנו כאן כדי לעזור לכם להפוך את התהליך לפשוט, מאורגן ומהנה.'
     }
